@@ -23,4 +23,4 @@ The API runs at `http://localhost:3001` and the web app at `http://localhost:517
 - The app persists the most recent project to Postgres and caches it in `localStorage`.
 - New projects start with a blank canvas.
 - Holding `Alt` while dragging resizes a neck; `Alt+Shift` scales proportionally.
-
+- The user guide is available at `/docs` when the web app is running.

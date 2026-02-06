@@ -28,6 +28,7 @@
       "Click to select a neck.",
       "Click empty canvas or press Escape to clear selection (no diagram selected).",
       "Drag without modifiers moves the neck.",
+      "Drag interactions must remain smooth during continuous state updates (avoid listener churn mid-drag).",
       "Alt-drag resizes; Alt+Shift scales proportionally.",
       "Necks are resizable and repositionable.",
       "Tiling algorithm suggests placement as more diagrams are added.",
@@ -44,7 +45,8 @@
     "notes": [
       "Mouse interaction to place/remove notes.",
       "Label modes: key, interval, picking direction.",
-      "Global key/scale selection to derive interval and note labels."
+      "Global key/scale selection to derive interval and note labels.",
+      "Imported notes must be normalized to ensure unique ids (generate missing ids on import)."
     ],
     "diagram_rendering": [
       "Fret number labels must never overlap; when spacing is tight, reduce label density or hide labels to preserve readability.",
@@ -69,7 +71,8 @@
     ],
     "persistence": [
       "Auto-save project to Postgres.",
-      "Cache latest project in localStorage for offline recovery."
+      "Cache latest project in localStorage for offline recovery.",
+      "Validate cached project payloads on load; discard or normalize when invalid."
     ],
     "demo": [
       "Provide a public demo page accessible without login.",
@@ -93,7 +96,9 @@
     ],
     "testing": [
       "Add an automated test suite that covers import/export flows for diagrams, pages, and JSON.",
-      "Import/export tests must cover invalid JSON and regression cases."
+      "Import/export tests must cover invalid JSON and regression cases.",
+      "Add API integration tests for /api/projects and /api/library (success + error cases).",
+      "Lint scripts for apps/api and apps/web must run real linters (no placeholders) and run in CI."
     ]
   },
   "security_requirements": {
@@ -161,12 +166,13 @@
       "Remote success path loads last project, sets title input, caches locally, and status becomes ready.",
       "Remote empty path creates a blank project, saves remotely, caches locally, and status becomes ready.",
       "Remote error path loads local cache when valid; if invalid, creates a local project and status becomes ready.",
-      "Local cache with malformed JSON falls back to a new local project without throwing.",
+      "Local cache with malformed JSON or schema-invalid data falls back to a new local project without throwing.",
       "Local cache with missing tabs or activeTabId is migrated to a valid tab and active selection.",
       "Selected diagram id referencing a missing diagram clears selection gracefully.",
       "Active tab id referencing a missing tab falls back to the first available tab.",
       "Export operations succeed with zero diagrams and with large diagrams.",
       "Import invalid JSON does not mutate state and surfaces a clear error.",
+      "Imported diagram notes without ids are assigned unique ids and remain editable/toggleable.",
       "Import page JSON merges tabs/diagrams without duplicating ids or breaking selection.",
       "Exporting a page JSON uses the export name for the file only and does not rename the current project title.",
       "Importing a page JSON into a non-empty project preserves the existing project title.",
@@ -182,6 +188,7 @@
     ],
     "interaction_tests": [
       "Drag and resize state resets on mouseup and on pointer leave without leaving a stuck drag state.",
+      "Dragging remains smooth under continuous state updates; drag listeners are not re-registered mid-drag.",
       "Alt-drag resizes, Alt+Shift preserves aspect ratio, and sizes clamp to min/max.",
       "Canvas zoom changes do not desync selection handles or page outline bounds.",
       "Tiling suggestions place new diagrams without overlap and within visible canvas.",
@@ -224,6 +231,13 @@
     "Demo page should feel fully interactive but clearly marked as demo mode.",
     "Landing page should be concise, clear, and link-focused.",
     "Responsive layout should avoid awkward nav wrapping and preserve visual balance across breakpoints."
+  ],
+  "quality_tech_debt": [
+    "Reduce drag listener churn by decoupling drag handlers from frequently-updated state; avoid re-registering listeners on every pointer move.",
+    "Normalize imported notes to always include stable ids (generate missing ids and dedupe).",
+    "Validate cached localStorage project payloads against schema and fall back safely when invalid.",
+    "Replace placeholder lint scripts with real linting and add API integration tests.",
+    "Refactor oversized UI modules (e.g., App.tsx) into focused hooks/components to reduce side-effect coupling."
   ],
   "frontend": [
     "Normalize tuning input (case + sharps/flats) before storing so note parsing and labels remain consistent."

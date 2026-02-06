@@ -38,14 +38,19 @@ This guide documents the current web app behavior and avoids implying features t
 ## Labels, notes, and theory
 - Label modes: `Key`, `Interval`, `Picking`.
 - In **Picking** mode, clicking a note cycles `D` → `U` → off.
-- Setting a project-wide key/scale updates interval and scale highlighting.
-- The **Theory** panel defines defaults used by new diagrams.
+- Diagram labels use the diagram’s own key/scale/position settings.
+- The **Theory** panel defines defaults used by `Create Diagram` / `Replace Diagram`.
+
+## Diagram settings
+In the **Diagram** panel (for the selected diagram):
+- Set key, scale/mode, and position per diagram.
+- Change label mode (key, interval, picking).
+- Adjust frets, capo, highlight root, and fret number visibility.
 
 ## Instrument settings
 In the **Instrument** panel (for the selected diagram):
 - Adjust string count and tuning.
 - Use 8-string presets when strings = 8.
-- Set fret count and capo position.
 
 ## Appearance and layout
 In **Settings** (for the selected diagram):

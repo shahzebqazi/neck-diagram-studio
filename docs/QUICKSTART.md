@@ -11,7 +11,7 @@ npm install
 ```
 
 ## Environment
-Create a `.env` at the repo root:
+Copy `.env.example` to `.env` (or create a `.env`) at the repo root:
 ```bash
 DATABASE_URL=postgresql://user:password@localhost:5432/neck_diagram
 CLIENT_ORIGIN=http://localhost:5173
@@ -21,6 +21,7 @@ PORT=3001
 Notes:
 - `DATABASE_URL` is required for the API.
 - `CLIENT_ORIGIN` defaults to `http://localhost:5173` if unset.
+- `CLIENT_ORIGIN` can be a comma-separated list of allowed origins.
 - `PORT` defaults to `3001` if unset.
 - The web app uses Vite’s dev proxy for `/api`; no `VITE_API_BASE` is needed in local dev.
 

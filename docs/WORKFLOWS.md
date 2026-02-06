@@ -15,7 +15,8 @@
 ## Notes and labels
 - Click on the fretboard to toggle notes.
 - Label modes: key, interval, picking direction.
-- Global key/scale selection affects interval and note labeling.
+- Diagram labels use the diagram’s own key/scale/position settings.
+- The Theory panel sets defaults used by `Create Diagram` / `Replace Diagram`.
 
 ## Library search
 - Search by key, scale, mode, or position.
@@ -23,7 +24,8 @@
 
 ## Import/export
 Export:
-- PNG and PDF exports capture the on‑screen layout.
+- Diagram PNG exports capture the selected diagram.
+- Page PNG and PDF exports capture the on‑screen layout for the active tab.
 - JSON export supports both a selected diagram and a full page.
 
 Import:
