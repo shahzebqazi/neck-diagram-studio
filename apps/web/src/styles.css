@@ -1384,18 +1384,30 @@ body {
 
 .neck-diagram {
   cursor: grab;
+  position: relative;
   transition: transform 0.2s ease;
   overflow: visible;
 }
 
 .neck-diagram svg {
   display: block;
-  box-shadow: var(--diagram-shadow);
-  transition: box-shadow 0.2s ease;
+  position: absolute;
+  inset: 0;
   overflow: visible;
 }
 
-.neck-diagram.is-selected svg {
+.neck-diagram-base {
+  box-shadow: var(--diagram-shadow);
+  transition: box-shadow 0.2s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.neck-diagram-notes {
+  z-index: 1;
+}
+
+.neck-diagram.is-selected .neck-diagram-base {
   box-shadow: var(--diagram-shadow-selected);
 }
 

@@ -232,15 +232,11 @@ const NeckDiagram = ({
       onPointerDown={onPointerDown}
     >
       <svg
-        ref={svgRef}
+        className="neck-diagram-base"
         width={diagram.width}
         height={diagram.height}
         data-diagram-id={diagram.id}
-        onPointerDown={handleNotePointerDown}
-        onPointerMove={handleNotePointerMove}
-        onPointerUp={handleNotePointerUp}
-        onPointerLeave={clearNotePointer}
-        onPointerCancel={clearNotePointer}
+        aria-hidden="true"
       >
         <rect
           x={0}
@@ -342,7 +338,19 @@ const NeckDiagram = ({
               );
             })
           : null}
-
+      </svg>
+      <svg
+        ref={svgRef}
+        className="neck-diagram-notes"
+        width={diagram.width}
+        height={diagram.height}
+        data-diagram-id={diagram.id}
+        onPointerDown={handleNotePointerDown}
+        onPointerMove={handleNotePointerMove}
+        onPointerUp={handleNotePointerUp}
+        onPointerLeave={clearNotePointer}
+        onPointerCancel={clearNotePointer}
+      >
         {diagram.notes.map((note) => {
           const isOpen = note.fret < 0;
           const start = isOpen ? 0 : (fretPositions[note.fret] ?? openStringPad);
