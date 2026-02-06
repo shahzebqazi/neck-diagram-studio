@@ -14,6 +14,7 @@ import { getStandardTuning } from "../state/defaults";
 
 const MIN_NOTE_RADIUS = 8;
 const NOTE_TAP_THRESHOLD = 4;
+const NOTE_STROKE_WIDTH = 2;
 const ROOT_NOTE_COLOR = "var(--note-root)";
 const NOTE_IN_SCALE_COLOR = "var(--note-in-scale)";
 const NOTE_OUT_SCALE_COLOR = "var(--note-out-scale)";
@@ -111,9 +112,10 @@ const NeckDiagram = ({
   const { config } = diagram;
   const noteRadius = Math.max(MIN_NOTE_RADIUS, diagram.height / 18);
   const noteFontBase = Math.max(8, Math.min(noteRadius * 1.2, 18));
+  const noteEdgePad = noteRadius + NOTE_STROKE_WIDTH;
   const openStringPad = Math.max(24, noteRadius * 2.8);
-  const rightPad = Math.max(12, noteRadius);
-  const verticalPad = Math.max(8, noteRadius);
+  const rightPad = Math.max(12, noteEdgePad);
+  const verticalPad = Math.max(8, noteEdgePad);
   const fretNumberHeight = Math.max(12, Math.round(noteRadius * 1.2));
   const fretboardWidth = Math.max(1, diagram.width - openStringPad - rightPad);
   const stringHeight = Math.max(1, diagram.height - verticalPad * 2);
@@ -371,7 +373,7 @@ const NeckDiagram = ({
                 r={noteRadius}
                 fill={fill}
                 stroke={NOTE_STROKE_COLOR}
-                strokeWidth={2}
+                strokeWidth={NOTE_STROKE_WIDTH}
               />
               <text
                 x={x}

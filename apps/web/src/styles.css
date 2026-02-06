@@ -1797,6 +1797,78 @@ body {
   line-height: 1.5;
 }
 
+.feature-carousel {
+  position: relative;
+  min-height: 280px;
+  padding-bottom: 28px;
+}
+
+.feature-slide {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.feature-slide.is-active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.feature-copy h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.feature-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.feature-media {
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 10px;
+}
+
+.feature-media svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.feature-dots {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.feature-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.feature-dot.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 .landing-links {
   display: flex;
   flex-direction: column;
@@ -2103,6 +2175,19 @@ body {
 
   .landing-hero {
     grid-template-columns: 1fr;
+  }
+
+  .feature-carousel {
+    min-height: 320px;
+  }
+
+  .feature-slide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .feature-dots {
+    position: static;
+    margin-top: 12px;
   }
 
   .demo-gallery {

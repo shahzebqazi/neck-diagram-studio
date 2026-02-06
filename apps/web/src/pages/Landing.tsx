@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, usePathname } from "../lib/router";
 
 const LINK_ITEMS = [
@@ -19,18 +19,72 @@ const LINK_ITEMS = [
   }
 ];
 
-const FEATURE_ITEMS = [
+const FEATURE_SLIDES = [
   {
     title: "Blank canvas layout",
-    description: "Start from a clean canvas and place neck diagrams exactly where you want."
+    description: "Start from a clean canvas and place neck diagrams exactly where you want.",
+    art: (
+      <svg viewBox="0 0 320 180" role="img" aria-label="Blank canvas preview">
+        <rect x="0" y="0" width="320" height="180" rx="18" fill="var(--panel-strong)" />
+        <rect x="20" y="20" width="280" height="24" rx="10" fill="var(--panel)" />
+        <rect x="20" y="58" width="280" height="100" rx="14" fill="var(--bg)" />
+        <rect x="40" y="78" width="120" height="60" rx="12" fill="var(--panel)" />
+        <rect x="180" y="90" width="110" height="54" rx="12" fill="var(--panel)" />
+        <circle cx="72" cy="108" r="6" fill="var(--accent)" />
+        <circle cx="98" cy="118" r="6" fill="var(--accent)" />
+        <circle cx="208" cy="116" r="6" fill="var(--accent-strong)" />
+      </svg>
+    )
   },
   {
     title: "Key + scale labeling",
-    description: "Show note names, intervals, or picking direction with one click."
+    description: "Show note names, intervals, or picking direction with one click.",
+    art: (
+      <svg viewBox="0 0 320 180" role="img" aria-label="Neck diagram with labels">
+        <rect x="0" y="0" width="320" height="180" rx="18" fill="var(--panel-strong)" />
+        <rect x="24" y="30" width="272" height="110" rx="14" fill="var(--bg)" />
+        {Array.from({ length: 6 }).map((_, index) => (
+          <line
+            key={`label-string-${index}`}
+            x1="24"
+            y1={48 + index * 18}
+            x2="296"
+            y2={48 + index * 18}
+            stroke="var(--border)"
+            strokeWidth={index === 0 || index === 5 ? 2 : 1}
+          />
+        ))}
+        {Array.from({ length: 7 }).map((_, index) => (
+          <line
+            key={`label-fret-${index}`}
+            x1={46 + index * 36}
+            y1="30"
+            x2={46 + index * 36}
+            y2="140"
+            stroke="var(--border)"
+            strokeWidth={index === 0 ? 3 : 1}
+          />
+        ))}
+        <circle cx="110" cy="84" r="10" fill="var(--accent)" />
+        <circle cx="182" cy="66" r="10" fill="var(--accent-strong)" />
+        <circle cx="238" cy="108" r="10" fill="var(--accent)" />
+      </svg>
+    )
   },
   {
     title: "Export-ready layouts",
-    description: "Export PNG, PDF, or JSON pages that match the on‑screen layout."
+    description: "Export PNG, PDF, or JSON pages that match the on‑screen layout.",
+    art: (
+      <svg viewBox="0 0 320 180" role="img" aria-label="Export layout preview">
+        <rect x="0" y="0" width="320" height="180" rx="18" fill="var(--panel-strong)" />
+        <rect x="26" y="28" width="268" height="40" rx="12" fill="var(--panel)" />
+        <rect x="26" y="78" width="268" height="74" rx="14" fill="var(--bg)" />
+        <rect x="42" y="92" width="100" height="46" rx="10" fill="var(--panel)" />
+        <rect x="156" y="92" width="122" height="46" rx="10" fill="var(--panel)" />
+        <circle cx="74" cy="115" r="7" fill="var(--accent)" />
+        <circle cx="190" cy="118" r="7" fill="var(--accent-strong)" />
+      </svg>
+    )
   }
 ];
 
@@ -94,6 +148,14 @@ const LandingPage = () => {
   const toggleSection = (section: keyof typeof collapsedSections) => {
     setCollapsedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
+  const [featureIndex, setFeatureIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setFeatureIndex((prev) => (prev + 1) % FEATURE_SLIDES.length);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   return (
     <div className="landing-page">
@@ -175,13 +237,32 @@ const LandingPage = () => {
               </div>
               <div className="hero-panel">
                 <div className="hero-panel-header">Core features</div>
-                <div className="hero-panel-grid">
-                  {FEATURE_ITEMS.map((feature) => (
-                    <div key={feature.title} className="hero-card">
-                      <h3>{feature.title}</h3>
-                      <p>{feature.description}</p>
+                <div className="feature-carousel" role="region" aria-live="polite">
+                  {FEATURE_SLIDES.map((feature, index) => (
+                    <div
+                      key={feature.title}
+                      className={`feature-slide${index === featureIndex ? " is-active" : ""}`}
+                      aria-hidden={index !== featureIndex}
+                    >
+                      <div className="feature-copy">
+                        <h3>{feature.title}</h3>
+                        <p>{feature.description}</p>
+                      </div>
+                      <div className="feature-media">{feature.art}</div>
                     </div>
                   ))}
+                  <div className="feature-dots" role="tablist" aria-label="Feature slides">
+                    {FEATURE_SLIDES.map((feature, index) => (
+                      <button
+                        key={feature.title}
+                        type="button"
+                        className={`feature-dot${index === featureIndex ? " is-active" : ""}`}
+                        onClick={() => setFeatureIndex(index)}
+                        aria-label={`Show ${feature.title}`}
+                        aria-pressed={index === featureIndex}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </>
