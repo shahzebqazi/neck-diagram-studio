@@ -234,8 +234,10 @@
   ],
   "quality_tech_debt": [
     "Reduce drag listener churn by decoupling drag handlers from frequently-updated state; avoid re-registering listeners on every pointer move.",
+    "Profile React renders with React DevTools Profiler (drag, resize, import) and address hotspots/unnecessary re-renders.",
     "Normalize imported notes to always include stable ids (generate missing ids and dedupe).",
     "Validate cached localStorage project payloads against schema and fall back safely when invalid.",
+    "Unify schema validation/normalization at all ingress points (API routes, localStorage, import).",
     "Replace placeholder lint scripts with real linting and add API integration tests.",
     "Refactor oversized UI modules (e.g., App.tsx) into focused hooks/components to reduce side-effect coupling."
   ],
