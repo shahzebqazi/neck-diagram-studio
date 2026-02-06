@@ -9,7 +9,7 @@ const LINK_ITEMS = [
   {
     title: "Code Repository",
     description: "Browse the source and track issues in the public repo.",
-    href: "https://gitlab.com/neckdiagramstudio/neck-diagram-studio"
+    href: "https://gitlab.com/destroyerofworlds/neck-diagram-studio"
   },
   {
     title: "Creator Website",
