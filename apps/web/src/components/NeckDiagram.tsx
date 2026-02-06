@@ -13,7 +13,20 @@ import {
 import { getStandardTuning } from "../state/defaults";
 
 const MIN_NOTE_RADIUS = 8;
-const ROOT_NOTE_COLOR = "#e54b4b";
+const NOTE_TAP_THRESHOLD = 4;
+const ROOT_NOTE_COLOR = "var(--note-root)";
+const NOTE_IN_SCALE_COLOR = "var(--note-in-scale)";
+const NOTE_OUT_SCALE_COLOR = "var(--note-out-scale)";
+const NOTE_LABEL_COLOR = "var(--note-label)";
+const NOTE_STROKE_COLOR = "var(--note-stroke)";
+const DIAGRAM_BG = "var(--diagram-bg)";
+const DIAGRAM_BORDER = "var(--diagram-border)";
+const DIAGRAM_STRING = "var(--diagram-string)";
+const DIAGRAM_FRET = "var(--diagram-fret)";
+const DIAGRAM_NUT = "var(--diagram-nut)";
+const DIAGRAM_CAPO = "var(--diagram-capo)";
+const DIAGRAM_INLAY = "var(--diagram-inlay)";
+const DIAGRAM_SELECTION = "var(--diagram-selection)";
 const INLAY_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
 const DOUBLE_INLAY_FRETS = new Set([12, 24]);
 const toRoman = (value: number) => {
@@ -90,6 +103,11 @@ const NeckDiagram = ({
 }: Props) => {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const renameInputRef = useRef<HTMLInputElement | null>(null);
+  const notePointerRef = useRef<{
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null>(null);
   const { config } = diagram;
   const noteRadius = Math.max(MIN_NOTE_RADIUS, diagram.height / 18);
   const noteFontBase = Math.max(8, Math.min(noteRadius * 1.2, 18));
@@ -99,13 +117,16 @@ const NeckDiagram = ({
   const fretNumberHeight = Math.max(12, Math.round(noteRadius * 1.2));
   const fretboardWidth = Math.max(1, diagram.width - openStringPad - rightPad);
   const stringHeight = Math.max(1, diagram.height - verticalPad * 2);
+  const rawAngle = config.multiscaleAngle ?? 0;
+  const multiscaleAngle = Number.isFinite(rawAngle) ? rawAngle : 0;
+  const angleRadians = (multiscaleAngle * Math.PI) / 180;
+  const angleSlope = Math.tan(angleRadians);
+  const angleOffset = angleSlope * (diagram.height / 2);
 
   const fretPositions = useMemo(
     () =>
-      getFretPositions(config.scaleLength, config.frets, fretboardWidth).map(
-        (position) => position + openStringPad
-      ),
-    [config.frets, config.scaleLength, fretboardWidth, openStringPad]
+      getFretPositions(config.frets, fretboardWidth).map((position) => position + openStringPad),
+    [config.frets, fretboardWidth, openStringPad]
   );
 
   const stringPositions = useMemo(
@@ -136,33 +157,65 @@ const NeckDiagram = ({
     return new Set(scaleIntervals.map((interval) => (rootIndex + interval) % 12));
   }, [rootKey, scaleIntervals, rootIndex]);
 
-  const handlePointerDown = (event: PointerEvent<SVGSVGElement>) => {
+  const getLocalPoint = (event: PointerEvent<SVGSVGElement>) => {
+    const bounds = svgRef.current?.getBoundingClientRect();
+    if (!bounds) return null;
+    const zoomFactor = zoom || 1;
+    return {
+      x: (event.clientX - bounds.left) / zoomFactor,
+      y: (event.clientY - bounds.top) / zoomFactor
+    };
+  };
+
+  const handleNotePointerDown = (event: PointerEvent<SVGSVGElement>) => {
     if (event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     if (!selected) return;
-    const bounds = svgRef.current?.getBoundingClientRect();
-    if (!bounds) return;
+    const point = getLocalPoint(event);
+    if (!point) return;
+    notePointerRef.current = {
+      startX: point.x,
+      startY: point.y,
+      moved: false
+    };
+  };
 
-    const zoomFactor = zoom || 1;
-    const localX = (event.clientX - bounds.left) / zoomFactor;
-    const localY = (event.clientY - bounds.top) / zoomFactor;
+  const handleNotePointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    const current = notePointerRef.current;
+    if (!current) return;
+    const point = getLocalPoint(event);
+    if (!point) return;
+    const dx = point.x - current.startX;
+    const dy = point.y - current.startY;
+    if (Math.hypot(dx, dy) >= NOTE_TAP_THRESHOLD) {
+      current.moved = true;
+    }
+  };
 
+  const handleNotePointerUp = (event: PointerEvent<SVGSVGElement>) => {
+    const current = notePointerRef.current;
+    notePointerRef.current = null;
+    if (!current || current.moved) return;
+    const point = getLocalPoint(event);
+    if (!point) return;
+    const adjustedX = point.x - angleSlope * (point.y - diagram.height / 2);
     const fret =
-      localX < openStringPad
+      adjustedX < openStringPad
         ? -1
-        : clamp(findFretAtX(fretPositions, localX), 0, config.frets - 1);
+        : clamp(findFretAtX(fretPositions, adjustedX), 0, config.frets - 1);
     const spacing =
       config.strings <= 1 ? stringHeight : stringHeight / (config.strings - 1);
     const rawIndex =
       config.strings <= 1
         ? 0
-        : clamp(Math.round((localY - verticalPad) / spacing), 0, config.strings - 1);
+        : clamp(Math.round((point.y - verticalPad) / spacing), 0, config.strings - 1);
     const stringIndex = config.strings - 1 - rawIndex;
-
     onToggleNote(stringIndex, fret);
   };
 
-  const angleOffset = 0;
+  const clearNotePointer = () => {
+    notePointerRef.current = null;
+  };
 
   useEffect(() => {
     if (!isRenaming) return;
@@ -181,15 +234,19 @@ const NeckDiagram = ({
         width={diagram.width}
         height={diagram.height}
         data-diagram-id={diagram.id}
-        onPointerDown={handlePointerDown}
+        onPointerDown={handleNotePointerDown}
+        onPointerMove={handleNotePointerMove}
+        onPointerUp={handleNotePointerUp}
+        onPointerLeave={clearNotePointer}
+        onPointerCancel={clearNotePointer}
       >
         <rect
           x={0}
           y={0}
           width={diagram.width}
           height={diagram.height}
-          fill="#0f1318"
-          stroke="#1d2732"
+          fill={DIAGRAM_BG}
+          stroke={DIAGRAM_BORDER}
           strokeWidth={1}
         />
         {selected ? (
@@ -199,7 +256,7 @@ const NeckDiagram = ({
             width={Math.max(0, diagram.width - 2)}
             height={Math.max(0, diagram.height - 2)}
             fill="none"
-            stroke="#ffb347"
+            stroke={DIAGRAM_SELECTION}
             strokeWidth={2}
           />
         ) : null}
@@ -211,7 +268,7 @@ const NeckDiagram = ({
             y1={y}
             x2={diagram.width}
             y2={y}
-            stroke="#2b3947"
+            stroke={DIAGRAM_STRING}
             strokeWidth={index === 0 || index === config.strings - 1 ? 2 : 1}
           />
         ))}
@@ -227,7 +284,7 @@ const NeckDiagram = ({
               y1={0}
               x2={xBottom}
               y2={diagram.height}
-              stroke={isNut ? "#f7f1d9" : "#2b3947"}
+              stroke={isNut ? DIAGRAM_NUT : DIAGRAM_FRET}
               strokeWidth={isNut ? 3 : 1}
             />
           );
@@ -239,7 +296,7 @@ const NeckDiagram = ({
             y1={0}
             x2={fretPositions[config.capo] + angleOffset}
             y2={diagram.height}
-            stroke="#f4a259"
+            stroke={DIAGRAM_CAPO}
             strokeWidth={6}
             strokeLinecap="round"
             opacity={0.8}
@@ -253,7 +310,7 @@ const NeckDiagram = ({
               const end = fretPositions[fretNumber];
               if (start == null || end == null) return null;
               const inlayX = start + (end - start) / 2;
-              const fill = "#2a3742";
+              const fill = DIAGRAM_INLAY;
               if (DOUBLE_INLAY_FRETS.has(fretNumber)) {
                 return (
                   <g key={`inlay-${fretNumber}`}>
@@ -298,7 +355,11 @@ const NeckDiagram = ({
           const isRoot = highlightRoot && rootIndex !== null && noteIndex === rootIndex;
           const labelMode = note.labelMode ?? diagram.labelMode;
           const label = resolveLabel(labelMode, noteIndex, rootIndex, note.picking);
-          const fill = isRoot ? ROOT_NOTE_COLOR : inScale ? "#ffb347" : "#3b4b5c";
+          const fill = isRoot
+            ? ROOT_NOTE_COLOR
+            : inScale
+              ? NOTE_IN_SCALE_COLOR
+              : NOTE_OUT_SCALE_COLOR;
           const labelScale = label.length > 2 ? 0.8 : label.length > 1 ? 0.9 : 1;
           const fontSize = Math.max(8, noteFontBase * labelScale);
 
@@ -309,7 +370,7 @@ const NeckDiagram = ({
                 cy={y}
                 r={noteRadius}
                 fill={fill}
-                stroke="#11171f"
+                stroke={NOTE_STROKE_COLOR}
                 strokeWidth={2}
               />
               <text
@@ -318,7 +379,7 @@ const NeckDiagram = ({
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fontSize={fontSize}
-                fill="#10151b"
+                fill={NOTE_LABEL_COLOR}
                 fontFamily="'JetBrainsMono Nerd Font', 'FiraCode Nerd Font', 'Hack Nerd Font', 'NerdFontsSymbols Nerd Font', monospace"
               >
                 {label}

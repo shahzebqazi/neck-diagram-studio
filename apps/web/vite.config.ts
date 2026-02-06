@@ -2,7 +2,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 
+const ciPagesUrl = process.env.CI_PAGES_URL;
+const base = ciPagesUrl ? new URL(ciPagesUrl).pathname.replace(/\/?$/, "/") : "/";
+
 export default defineConfig({
+  base,
   plugins: [react()],
   resolve: {
     alias: {

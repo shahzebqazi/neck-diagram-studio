@@ -12,6 +12,7 @@ import type {
 import NeckDiagramView from "./components/NeckDiagram";
 import {
   createBlankProject,
+  createDemoProject,
   createNeckDiagram,
   DEFAULT_NECK_CONFIG,
   DEFAULT_DIAGRAM_SIZE,
@@ -23,6 +24,15 @@ import { fetchLastProject, createProject, updateProject, fetchLibrary } from "./
 import { loadLocalProject, saveLocalProject } from "./lib/storage";
 import { useDebouncedEffect } from "./lib/hooks";
 import { DEFAULT_KEYS, DEFAULT_MODES, DEFAULT_POSITIONS, DEFAULT_SCALES } from "./lib/libraryDefaults";
+import {
+  createDefaultTab,
+  buildDiagramExportPayload,
+  buildPageExportPayload,
+  normalizeImportedDiagram,
+  parseProjectPayload,
+  safeJsonParse,
+  stripScaleLength
+} from "./lib/projectData";
 import { getNoteIndex, noteNameToIndex } from "./lib/neckMath";
 
 const MIN_WIDTH = 260;
@@ -32,10 +42,12 @@ const MAX_HEIGHT = 400;
 const EXPORT_SCALE = 2;
 const EXPORT_CAPTION_HEIGHT = 28;
 const DEFAULT_PROJECT_TITLE = "Untitled Neck Diagram";
+const DEMO_PROJECT_TITLE = "Demo Session";
 const GRID_SIZE = 32;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.1;
+const DRAG_THRESHOLD = 4;
 const US_LETTER_SIZE = { width: 816, height: 1056 };
 const OUTLINE_PADDING = 32;
 const TILE_GAP = 24;
@@ -44,6 +56,43 @@ const MAX_SIDEBAR_WIDTH = 480;
 const SIDEBAR_STATE_STORAGE_KEY = "neck-diagram:sidebar-collapsed";
 const PAGE_DATE_STORAGE_KEY = "neck-diagram:page-date";
 const DELETE_WARNING_STORAGE_KEY = "neck-diagram:delete-warning";
+const THEME_STORAGE_KEY = "neck-diagram:theme";
+const THEMES = [
+  {
+    id: "jaffa-cake",
+    label: "Jaffa Cake",
+    preview: "linear-gradient(135deg, #0b0f14 0%, #111821 50%, #ff7a18 100%)"
+  },
+  {
+    id: "light",
+    label: "Light",
+    preview: "linear-gradient(135deg, #f8f5f1 0%, #ffffff 55%, #f28c28 100%)"
+  },
+  {
+    id: "catputtchin",
+    label: "Catputtchin",
+    preview: "linear-gradient(135deg, #1b1410 0%, #2a1f1a 55%, #e7b77d 100%)"
+  },
+  {
+    id: "high-contrast",
+    label: "High Contrast",
+    preview: "linear-gradient(135deg, #000000 0%, #ffffff 55%, #ffd400 100%)"
+  },
+  {
+    id: "fifties",
+    label: "50's",
+    preview: "linear-gradient(135deg, #e0f2ea 0%, #cfe8f6 45%, #f6d66a 100%)"
+  },
+  {
+    id: "oled-blackout",
+    label: "OLED Blackout",
+    preview: "linear-gradient(135deg, #000000 0%, #111111 50%, #ff3b3b 100%)"
+  }
+] as const;
+type ThemeId = (typeof THEMES)[number]["id"];
+const DEFAULT_THEME: ThemeId = "high-contrast";
+const isThemeId = (value: string): value is ThemeId =>
+  THEMES.some((theme) => theme.id === value);
 const POSITION_PRESETS: Record<
   string,
   { minFret: number; maxFret: number; minFrets?: number }
@@ -90,10 +139,25 @@ type DragState = {
   startX: number;
   startY: number;
   origin: { x: number; y: number; width: number; height: number };
+  hasMoved: boolean;
+};
+
+const normalizeNoteName = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const letter = trimmed[0]?.toUpperCase();
+  if (!letter || !["A", "B", "C", "D", "E", "F", "G"].includes(letter)) {
+    return trimmed.toUpperCase();
+  }
+  const accidental = trimmed[1];
+  if (accidental === "#") return `${letter}#`;
+  if (accidental === "b" || accidental === "B") return `${letter}b`;
+  return letter;
 };
 
 const normalizeTuning = (strings: number, tuning: string[]) => {
-  let normalized = tuning.length > 0 ? [...tuning] : [];
+  let normalized =
+    tuning.length > 0 ? tuning.map(normalizeNoteName).filter((note) => note.length > 0) : [];
   if (normalized.length === 0) {
     normalized = getStandardTuning(strings);
   }
@@ -128,6 +192,11 @@ const slugify = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+const getDiagramExportHeight = (diagram: NeckDiagram) => {
+  const hasCaption = diagram.name?.trim().length > 0;
+  return diagram.height + (hasCaption ? EXPORT_CAPTION_HEIGHT : 0);
+};
+
 const svgToImage = (svg: SVGSVGElement, caption?: string) => {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
@@ -148,7 +217,8 @@ const svgToImage = (svg: SVGSVGElement, caption?: string) => {
       "'JetBrainsMono Nerd Font', 'FiraCode Nerd Font', 'Hack Nerd Font', 'NerdFontsSymbols Nerd Font', monospace"
     );
     text.setAttribute("font-size", "14");
-    text.setAttribute("fill", "#9aa7b2");
+    const muted = getCssVar("--muted", "#9aa7b2");
+    text.setAttribute("fill", muted);
     text.textContent = caption;
     clone.appendChild(text);
   }
@@ -168,6 +238,12 @@ const svgToImage = (svg: SVGSVGElement, caption?: string) => {
   });
 };
 
+const getCssVar = (name: string, fallback: string) => {
+  if (typeof window === "undefined") return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name);
+  return value?.trim() || fallback;
+};
+
 const normalizeNotes = (notes: Note[]) => {
   const deduped = new Map<string, Note>();
   notes.forEach((note) => {
@@ -185,10 +261,18 @@ const getDisplayTitle = (record: ProjectRecord | null) => {
   return title;
 };
 
-const createDefaultTab = (name = "Tab 1"): ProjectTab => ({
-  id: crypto.randomUUID(),
-  name
-});
+const isAutoTabName = (name?: string) => {
+  if (!name) return true;
+  return /^Tab\s+\d+$/i.test(name.trim());
+};
+
+const getTabDisplayName = (tab: ProjectTab, index: number) => {
+  const trimmed = tab.name?.trim() ?? "";
+  if (isAutoTabName(trimmed)) {
+    return `Tab ${index + 1}`;
+  }
+  return trimmed || `Tab ${index + 1}`;
+};
 
 const getPositionPreset = (positionName?: string) => {
   if (!positionName) return null;
@@ -253,7 +337,11 @@ const isEditableTarget = (target: EventTarget | null) => {
   return tag === "input" || tag === "textarea" || tag === "select";
 };
 
-const App = () => {
+type AppMode = "studio" | "demo";
+type AppProps = { mode?: AppMode };
+
+const App = ({ mode = "studio" }: AppProps) => {
+  const isDemo = mode === "demo";
   const [project, setProject] = useState<ProjectRecord | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [isRemote, setIsRemote] = useState(true);
@@ -290,6 +378,11 @@ const App = () => {
   const [renamingDiagramId, setRenamingDiagramId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [showPageDate, setShowPageDate] = useState(false);
+  const [theme, setTheme] = useState<ThemeId>(() => {
+    if (typeof window === "undefined") return DEFAULT_THEME;
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    return stored && isThemeId(stored) ? stored : DEFAULT_THEME;
+  });
   const [panelOpen, setPanelOpen] = useState({
     theory: true,
     diagram: true,
@@ -314,8 +407,10 @@ const App = () => {
 
   const tabs = (project?.data.tabs ?? []).filter((tab) => tab?.id);
   const activeTabId = project?.data.activeTabId ?? tabs[0]?.id ?? null;
-  const activeTabName = tabs.find((tab) => tab.id === activeTabId)?.name ?? "";
-  const hasCustomTabTitle = activeTabName.length > 0 && !/^Tab\\s+\\d+$/i.test(activeTabName);
+  const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTabId);
+  const activeTab = activeTabIndex >= 0 ? tabs[activeTabIndex] : null;
+  const activeTabName = activeTab ? getTabDisplayName(activeTab, activeTabIndex) : "";
+  const hasCustomTabTitle = activeTab ? !isAutoTabName(activeTab.name) : false;
   const diagramsInActiveTab = useMemo(() => {
     if (!project || !activeTabId) return [];
     return project.data.diagrams.filter((diagram) => diagram.tabId === activeTabId);
@@ -353,7 +448,9 @@ const App = () => {
     const minX = Math.min(...diagramsInActiveTab.map((diagram) => diagram.x));
     const maxX = Math.max(...diagramsInActiveTab.map((diagram) => diagram.x + diagram.width));
     const minY = Math.min(...diagramsInActiveTab.map((diagram) => diagram.y));
-    const maxY = Math.max(...diagramsInActiveTab.map((diagram) => diagram.y + diagram.height));
+    const maxY = Math.max(
+      ...diagramsInActiveTab.map((diagram) => diagram.y + getDiagramExportHeight(diagram))
+    );
     const contentWidth = Math.max(1, maxX - minX + OUTLINE_PADDING * 2);
     const contentHeight = Math.max(1, maxY - minY + OUTLINE_PADDING * 2);
     const scale = Math.max(
@@ -378,6 +475,26 @@ const App = () => {
 
   useEffect(() => {
     let mounted = true;
+
+    if (isDemo) {
+      const demo = createDemoProject();
+      const now = new Date().toISOString();
+      const record: ProjectRecord = {
+        id: `demo-${crypto.randomUUID()}`,
+        title: DEMO_PROJECT_TITLE,
+        data: demo,
+        createdAt: now,
+        updatedAt: now,
+        lastOpenedAt: now
+      };
+      setProject(record);
+      setIsRemote(false);
+      setStatus("ready");
+      setTitleInput(getDisplayTitle(record));
+      return () => {
+        mounted = false;
+      };
+    }
 
     const load = async () => {
       try {
@@ -429,7 +546,7 @@ const App = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isDemo]);
 
   useEffect(() => {
     const stored = localStorage.getItem(DELETE_WARNING_STORAGE_KEY);
@@ -454,6 +571,12 @@ const App = () => {
   useEffect(() => {
     localStorage.setItem(PAGE_DATE_STORAGE_KEY, String(showPageDate));
   }, [showPageDate]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_STATE_STORAGE_KEY, String(sidebarCollapsed));
@@ -494,6 +617,10 @@ const App = () => {
       project.data.diagrams.some(
         (diagram) => !diagram.tabId || !tabs.some((tab) => tab.id === diagram.tabId)
       );
+    const needsConfigCleanup = project.data.diagrams.some((diagram) => {
+      if (!diagram.config || typeof diagram.config !== "object") return false;
+      return "scaleLength" in (diagram.config as Record<string, unknown>);
+    });
     const needsNoteCleanup = project.data.diagrams.some((diagram) => {
       const seen = new Set<string>();
       for (const note of diagram.notes) {
@@ -510,7 +637,8 @@ const App = () => {
       !needsTheoryMigration &&
       !needsNoteCleanup &&
       !needsTabMigration &&
-      !needsLayoutMigration
+      !needsLayoutMigration &&
+      !needsConfigCleanup
     ) {
       return;
     }
@@ -527,7 +655,8 @@ const App = () => {
           ? diagram.positionId ?? data.positionId
           : diagram.positionId,
         notes: needsNoteCleanup ? normalizeNotes(diagram.notes) : diagram.notes,
-        layoutMode: needsLayoutMigration ? diagram.layoutMode ?? "grid" : diagram.layoutMode
+        layoutMode: needsLayoutMigration ? diagram.layoutMode ?? "grid" : diagram.layoutMode,
+        config: needsConfigCleanup ? stripScaleLength(diagram.config) : diagram.config
       }))
     }));
   }, [project]);
@@ -679,6 +808,7 @@ const App = () => {
 
   useDebouncedEffect(() => {
     if (!project) return;
+    if (isDemo) return;
     saveLocalProject(project);
     if (!isRemote) return;
     updateProject(project.id, {
@@ -688,7 +818,7 @@ const App = () => {
     }).catch(() => {
       setIsRemote(false);
     });
-  }, [project, isRemote], 800);
+  }, [project, isRemote, isDemo], 800);
 
   useEffect(() => {
     if (!dragging) return;
@@ -715,6 +845,17 @@ const App = () => {
       const zoomFactor = canvasZoom || 1;
       const dx = (event.clientX - dragState.startX) / zoomFactor;
       const dy = (event.clientY - dragState.startY) / zoomFactor;
+      const distance = Math.hypot(dx, dy);
+
+      if (!dragState.hasMoved && distance < DRAG_THRESHOLD) {
+        return;
+      }
+
+      if (!dragState.hasMoved) {
+        dragState.hasMoved = true;
+        setDragMode(dragState.mode);
+        setDraggingDiagramId(dragState.mode === "move" ? dragState.id : null);
+      }
 
       if (dragState.mode === "move") {
         const overTrash = isOverTrash(dragState.id);
@@ -731,10 +872,10 @@ const App = () => {
             const nextX = dragState.origin.x + dx;
             const nextY = dragState.origin.y + dy;
             if (!diagram.config.snapToGrid) {
-              return { ...diagram, x: nextX, y: nextY };
+              return { ...diagram, x: nextX, y: nextY, layoutMode: "float" };
             }
             const snap = (value: number) => Math.round(value / GRID_SIZE) * GRID_SIZE;
-            return { ...diagram, x: snap(nextX), y: snap(nextY) };
+            return { ...diagram, x: snap(nextX), y: snap(nextY), layoutMode: "float" };
           }
           if (dragState.mode === "resize") {
             return {
@@ -770,10 +911,15 @@ const App = () => {
 
     const handleUp = (event: PointerEvent) => {
       const dragState = dragRef.current;
+      const didMove = dragState?.hasMoved ?? false;
       const shouldDelete =
-        dragState?.mode === "move" && dragState?.id ? isOverTrash(dragState.id) : false;
+        didMove && dragState?.mode === "move" && dragState?.id
+          ? isOverTrash(dragState.id)
+          : false;
       const dropTabId =
-        dragState?.mode === "move" ? getTabDropTarget(event.clientX, event.clientY) : null;
+        didMove && dragState?.mode === "move"
+          ? getTabDropTarget(event.clientX, event.clientY)
+          : null;
       const shouldMove =
         dropTabId && dragState?.id && dropTabId !== activeTabId ? dropTabId : null;
       dragRef.current = null;
@@ -781,6 +927,7 @@ const App = () => {
       setDragMode(null);
       setDraggingDiagramId(null);
       setTrashHoverDiagramId(null);
+      if (!didMove) return;
       if (shouldDelete && dragState?.id) {
         requestDeleteRef.current({ type: "diagram", id: dragState.id });
         return;
@@ -873,15 +1020,13 @@ const App = () => {
   useEffect(() => {
     if (!project || !activeTabId) return;
     const diagramsInTab = project.data.diagrams.filter((diagram) => diagram.tabId === activeTabId);
-    const isSelectedInTab = diagramsInTab.some(
-      (diagram) => diagram.id === project.data.selectedDiagramId
-    );
+    const selectedId = project.data.selectedDiagramId;
+    if (!selectedId) return;
+    const isSelectedInTab = diagramsInTab.some((diagram) => diagram.id === selectedId);
     if (isSelectedInTab) return;
-    const nextSelected = diagramsInTab[0]?.id;
-    if (project.data.selectedDiagramId === nextSelected) return;
     updateProjectData((data) => ({
       ...data,
-      selectedDiagramId: nextSelected
+      selectedDiagramId: undefined
     }));
   }, [project, activeTabId]);
 
@@ -1237,15 +1382,10 @@ const App = () => {
     handleSelectDiagram(diagram.id);
 
     if (event.button !== 0) return;
-    let mode: DragMode | null = null;
-    if (event.metaKey || event.ctrlKey) {
-      mode = "move";
-    } else if (event.altKey) {
+    if (isEditableTarget(event.target)) return;
+    let mode: DragMode = "move";
+    if (event.altKey) {
       mode = event.shiftKey ? "scale" : "resize";
-    }
-    if (!mode) return;
-    if (mode === "move" && diagram.layoutMode !== "float") {
-      updateDiagram(diagram.id, (item) => ({ ...item, layoutMode: "float" }));
     }
     dragRef.current = {
       id: diagram.id,
@@ -1257,11 +1397,12 @@ const App = () => {
         y: diagram.y,
         width: diagram.width,
         height: diagram.height
-      }
+      },
+      hasMoved: false
     };
     setDragging(true);
-    setDragMode(mode);
-    setDraggingDiagramId(mode === "move" ? diagram.id : null);
+    setDragMode(null);
+    setDraggingDiagramId(null);
     setTrashHoverDiagramId(null);
   };
 
@@ -1328,82 +1469,13 @@ const App = () => {
     return `neck-diagram-${diagram.id.slice(0, 6)}`;
   };
 
-  const normalizeProjectData = (data: ProjectData) => {
-    const now = new Date().toISOString();
-    const incomingTabs = Array.isArray(data.tabs) ? data.tabs.filter((tab) => tab?.id) : [];
-    const tabs = incomingTabs.length > 0 ? incomingTabs : [createDefaultTab()];
-    const activeTabId =
-      data.activeTabId && tabs.some((tab) => tab.id === data.activeTabId)
-        ? data.activeTabId
-        : tabs[0].id;
-    const diagrams = Array.isArray(data.diagrams)
-      ? data.diagrams.map((diagram) => ({
-          ...diagram,
-          tabId: tabs.some((tab) => tab.id === diagram.tabId) ? diagram.tabId : activeTabId,
-          layoutMode: diagram.layoutMode ?? "grid"
-        }))
-      : [];
-    const diagramsInActiveTab = diagrams.filter((diagram) => diagram.tabId === activeTabId);
-    const selectedDiagramId =
-      data.selectedDiagramId &&
-      diagrams.some((diagram) => diagram.id === data.selectedDiagramId)
-        ? data.selectedDiagramId
-        : diagramsInActiveTab[0]?.id ?? diagrams[0]?.id;
-    return {
-      ...data,
-      diagrams,
-      tabs,
-      activeTabId,
-      selectedDiagramId,
-      createdAt: data.createdAt ?? now,
-      updatedAt: now
-    };
-  };
-
-  const parseProjectPayload = (parsed: unknown) => {
-    const fallback = { title: null as string | null, data: null as ProjectData | null };
-    if (!parsed || typeof parsed !== "object") return fallback;
-    const record = parsed as { title?: unknown; data?: unknown };
-    const title = typeof record.title === "string" ? record.title.trim() : null;
-    if (record.data && typeof record.data === "object" && Array.isArray((record.data as ProjectData).diagrams)) {
-      return { title, data: normalizeProjectData(record.data as ProjectData) };
-    }
-    if (Array.isArray((parsed as ProjectData).diagrams)) {
-      return { title, data: normalizeProjectData(parsed as ProjectData) };
-    }
-    return fallback;
-  };
-
-  const normalizeImportedDiagram = (
-    diagram: NeckDiagram,
-    tabId: string,
-    existingIds: Set<string>
-  ) => {
-    const nextId = diagram.id && !existingIds.has(diagram.id) ? diagram.id : crypto.randomUUID();
-    existingIds.add(nextId);
-    const config = { ...DEFAULT_NECK_CONFIG, ...(diagram.config ?? {}) };
-    return createNeckDiagram({
-      ...diagram,
-      id: nextId,
-      tabId,
-      layoutMode: diagram.layoutMode ?? "grid",
-      config,
-      notes: Array.isArray(diagram.notes) ? diagram.notes : [],
-      labelMode: diagram.labelMode ?? "key"
-    });
-  };
-
   const exportSelectedDiagramJson = () => {
     if (!selectedDiagram) return;
     const theoryName = getDiagramTheoryName(selectedDiagram);
     const baseName = theoryName || selectedDiagram.name || "diagram";
     const filename = `${slugify(baseName) || "diagram"}.json`;
     const exportedAt = new Date().toISOString();
-    const payload = {
-      diagram: selectedDiagram,
-      exportedAt,
-      version: 1
-    };
+    const payload = buildDiagramExportPayload(selectedDiagram, exportedAt);
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -1419,7 +1491,7 @@ const App = () => {
       window.alert("Add a neck diagram before exporting.");
       return;
     }
-    const tabName = tabs.find((tab) => tab.id === activeTabId)?.name ?? "Page";
+    const tabName = activeTab ? getTabDisplayName(activeTab, activeTabIndex) : "Page";
     const suggested = tabName;
     const name = window.prompt("Name this export", suggested);
     if (!name || !name.trim()) return;
@@ -1435,24 +1507,14 @@ const App = () => {
     });
     const filename = `${slugify(title) || "neck-diagram"}.json`;
     const exportedAt = new Date();
-    const tabId = crypto.randomUUID();
-    const data: ProjectData = {
-      diagrams: diagramsInActiveTab.map((diagram) => ({ ...diagram, tabId })),
-      tabs: [{ id: tabId, name: tabName }],
-      activeTabId: tabId,
-      selectedDiagramId: diagramsInActiveTab[0]?.id,
-      createdAt: project.data.createdAt,
-      updatedAt: new Date().toISOString()
-    };
-    const payload = {
+    const payload = buildPageExportPayload({
       title,
-      data,
-      metadata: {
-        exportedAt: exportedAt.toISOString(),
-        exportedOn: formatExportDate(exportedAt)
-      },
-      version: 1
-    };
+      tabName,
+      diagrams: diagramsInActiveTab,
+      createdAt: project.data.createdAt,
+      exportedAt: exportedAt.toISOString(),
+      exportedOn: formatExportDate(exportedAt)
+    });
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -1464,13 +1526,12 @@ const App = () => {
 
   const importPagesJson = async (file: File) => {
     const text = await file.text();
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
+    const parsedResult = safeJsonParse(text);
+    if (!parsedResult.ok) {
       window.alert("Invalid JSON file.");
       return;
     }
+    const parsed = parsedResult.value;
 
     const fallbackTitle = file.name.replace(/\.json$/i, "").trim() || "Imported Project";
     const parsedPayload = parseProjectPayload(parsed);
@@ -1566,13 +1627,12 @@ const App = () => {
 
   const importDiagramJson = async (file: File) => {
     const text = await file.text();
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
+    const parsedResult = safeJsonParse(text);
+    if (!parsedResult.ok) {
       window.alert("Invalid JSON file.");
       return;
     }
+    const parsed = parsedResult.value;
 
     const diagrams: NeckDiagram[] = [];
     if (parsed && typeof parsed === "object") {
@@ -1899,7 +1959,8 @@ const App = () => {
       ctx.setTransform(EXPORT_SCALE, 0, 0, EXPORT_SCALE, 0, 0);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
-      ctx.fillStyle = "#0b1015";
+      const pageBg = getCssVar("--bg", "#0b1015");
+      ctx.fillStyle = pageBg;
       ctx.fillRect(0, 0, width, height);
 
       images.forEach((item) => {
@@ -1919,7 +1980,7 @@ const App = () => {
       pdf.text(exportLabel, 12, 18);
       pdf.addImage(pngData, "PNG", 0, headerHeight, width, height);
 
-      const tabName = tabs.find((tab) => tab.id === activeTabId)?.name ?? "page";
+      const tabName = activeTab ? getTabDisplayName(activeTab, activeTabIndex) : "page";
       const fileBase = slugify(`${project.title}-${tabName}`) || "page";
       pdf.save(`${fileBase}.pdf`);
     } catch (error) {
@@ -1984,7 +2045,8 @@ const App = () => {
       ctx.setTransform(EXPORT_SCALE, 0, 0, EXPORT_SCALE, 0, 0);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
-      ctx.fillStyle = "#0b1015";
+      const pageBg = getCssVar("--bg", "#0b1015");
+      ctx.fillStyle = pageBg;
       ctx.fillRect(0, 0, width, height);
 
       images.forEach((item) => {
@@ -1999,7 +2061,7 @@ const App = () => {
       if (!blob) throw new Error("PNG export failed.");
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const tabName = tabs.find((tab) => tab.id === activeTabId)?.name ?? "page";
+      const tabName = activeTab ? getTabDisplayName(activeTab, activeTabIndex) : "page";
       const fileBase = slugify(`${project.title}-${tabName}`) || "page";
       link.href = url;
       link.download = `${fileBase}.png`;
@@ -2069,6 +2131,7 @@ const App = () => {
     return null;
   }, [status, project, diagramsInActiveTab.length]);
   const isEmptyProject = !!project && project.data.diagrams.length === 0;
+  const todayLabel = formatExportDate(new Date());
 
   if (status === "loading") {
     return (
@@ -2088,11 +2151,14 @@ const App = () => {
             onChange={(event) => handleTitleChange(event.target.value)}
           />
           <span className="title-sub">
-            <a href="https://www.iconoclastaud.io/" target="_blank" rel="noreferrer">
+            <a href="https://iconoclastaud.io/" target="_blank" rel="noreferrer">
               Iconoclast Aud.io
             </a>
             <span> // Neck Diagram Studio</span>
           </span>
+        </div>
+        <div className="header-meta">
+          <span className="header-date">{todayLabel}</span>
         </div>
       </header>
 
@@ -2111,7 +2177,9 @@ const App = () => {
           </button>
           {tabs.length > 1 ? (
             <div className="tabs-list" role="tablist" aria-label="Diagram tabs">
-              {tabs.map((tab) => (
+              {tabs.map((tab, index) => {
+                const displayName = getTabDisplayName(tab, index);
+                return (
                 <div key={tab.id} className="tab-item" data-tab-id={tab.id}>
                   <button
                     className={`tab-button${tab.id === activeTabId ? " is-active" : ""}`}
@@ -2120,7 +2188,7 @@ const App = () => {
                     aria-selected={tab.id === activeTabId}
                     onClick={() => handleTabSelect(tab.id)}
                   >
-                    {tab.name}
+                    {displayName}
                   </button>
                   <button
                     className="tab-close"
@@ -2129,15 +2197,16 @@ const App = () => {
                       event.stopPropagation();
                       requestDelete({ type: "tab", id: tab.id });
                     }}
-                    aria-label={`Close ${tab.name}`}
-                    title={`Close ${tab.name}`}
+                    aria-label={`Close ${displayName}`}
+                    title={`Close ${displayName}`}
                   >
                     <span className="nf-icon" aria-hidden="true">
                       {"\uf00d"}
                     </span>
                   </button>
                 </div>
-              ))}
+              );
+              })}
             </div>
           ) : null}
           <button className="tab-add" type="button" onClick={handleAddTab}>
@@ -2875,6 +2944,25 @@ const App = () => {
               ) : (
                 <p className="muted">Select a neck to edit its configuration.</p>
               )}
+              <div className="panel-subhead">Appearance</div>
+              <div className="theme-grid grid grid-cols-2 gap-2">
+                {THEMES.map((themeOption) => (
+                  <button
+                    key={themeOption.id}
+                    type="button"
+                    className={`theme-option${theme === themeOption.id ? " is-active" : ""}`}
+                    onClick={() => setTheme(themeOption.id)}
+                    aria-pressed={theme === themeOption.id}
+                  >
+                    <span
+                      className="theme-swatch"
+                      style={{ background: themeOption.preview }}
+                      aria-hidden="true"
+                    />
+                    <span>{themeOption.label}</span>
+                  </button>
+                ))}
+              </div>
               <div className="panel-subhead">Preferences</div>
               <div className="form-grid">
                 <label className="checkbox full">
@@ -2924,25 +3012,18 @@ const App = () => {
           >
             <div className="canvas-zoom" style={{ zoom: canvasZoom }}>
               {sidebarCollapsed && outlineMetrics ? (
-                <>
-                  <div
-                    className="page-outline"
-                    style={{
-                      width: outlineMetrics.width,
-                      height: outlineMetrics.height,
-                      left: outlineMetrics.left,
-                      top: outlineMetrics.top
-                    }}
-                  />
+                <div
+                  className="page-frame"
+                  style={{
+                    width: outlineMetrics.width,
+                    height: outlineMetrics.height,
+                    left: outlineMetrics.left,
+                    top: outlineMetrics.top
+                  }}
+                >
+                  <div className="page-outline" />
                   {(hasCustomTabTitle || showPageDate) ? (
-                    <div
-                      className="page-header"
-                      style={{
-                        width: outlineMetrics.width,
-                        left: outlineMetrics.left,
-                        top: outlineMetrics.top
-                      }}
-                    >
+                    <div className="page-header">
                       {hasCustomTabTitle ? (
                         <div className="page-title">{activeTabName}</div>
                       ) : null}
@@ -2951,7 +3032,7 @@ const App = () => {
                       ) : null}
                     </div>
                   ) : null}
-                </>
+                </div>
               ) : null}
               {diagramsInActiveTab.map((diagram) => {
                 const diagramKey = diagram.keyId ? libraryIndex[diagram.keyId] : undefined;

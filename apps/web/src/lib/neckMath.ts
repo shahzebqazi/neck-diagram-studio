@@ -41,12 +41,12 @@ export const noteNameToIndex = (name?: string | null) => {
   return NOTE_INDEX[normalized] ?? null;
 };
 
-export const getFretPositions = (scaleLength: number, frets: number, width: number) => {
+export const getFretPositions = (frets: number, width: number) => {
   const positions: number[] = [0];
 
   for (let fret = 1; fret <= frets; fret += 1) {
-    const distance = scaleLength - scaleLength / Math.pow(2, fret / 12);
-    positions.push((distance / scaleLength) * width);
+    const ratio = 1 - 1 / Math.pow(2, fret / 12);
+    positions.push(ratio * width);
   }
 
   const last = positions[positions.length - 1] ?? 0;
