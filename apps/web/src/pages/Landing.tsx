@@ -21,15 +21,60 @@ const LINK_ITEMS = [
 const FEATURE_ITEMS = [
   {
     title: "Excalidraw-inspired canvas",
-    description: "Drop, resize, and align necks on a clean, minimal workspace."
+    description: "Drop, resize, and align fretboard diagrams on a clean workspace."
   },
   {
     title: "Scale and mode library",
-    description: "Search by key, shape, or position to highlight intervals fast."
+    description: "Search by key, scale, or position to highlight intervals fast."
   },
   {
     title: "Export-ready layouts",
-    description: "Preview page outlines that match the final PNG/PDF output."
+    description: "Export PNG, PDF, and JSON layouts that match your print flow."
+  }
+];
+
+const STEP_ITEMS = [
+  {
+    title: "Start with a blank canvas",
+    description: "Create a new project and drop in guitar neck diagrams."
+  },
+  {
+    title: "Arrange and label",
+    description: "Move, resize, and label notes by key, interval, or picking direction."
+  },
+  {
+    title: "Export and share",
+    description: "Save layouts as PNG/PDF or JSON for backup and reuse."
+  }
+];
+
+const USE_CASES = [
+  {
+    title: "Scale practice charts",
+    description: "Build consistent scale maps across multiple positions."
+  },
+  {
+    title: "Lesson handouts",
+    description: "Create clean, printable fretboard diagrams for students."
+  },
+  {
+    title: "Song mapping",
+    description: "Track chord tones and interval targets per diagram."
+  }
+];
+
+const FAQ_ITEMS = [
+  {
+    title: "Does the demo save my work?",
+    description: "No. Demo edits reset on refresh so you can explore safely."
+  },
+  {
+    title: "What export formats are supported?",
+    description: "PNG, PDF, and JSON for full-page or single-diagram exports."
+  },
+  {
+    title: "Is there offline recovery?",
+    description: "Yes. The latest project is cached locally for offline recovery."
   }
 ];
 
@@ -83,11 +128,11 @@ const LandingPage = () => {
         <section className="landing-hero">
           <div className="hero-copy">
             <div className="hero-pill">Version 0.1 Preview</div>
-            <h1>Design clean, printable guitar neck diagrams in minutes.</h1>
+            <h1>Design clean, printable guitar neck diagrams and fretboard charts.</h1>
             <p>
-              Neck Diagram Studio is a focused guitar neck diagram builder for scale maps and
-              practice grids. Drop necks on a blank page, annotate with interval labels, and
-              export layouts that match your print or share flow.
+              Neck Diagram Studio is a guitar neck diagram builder for scale maps and practice
+              grids. Start from a blank canvas, annotate intervals, and export layouts that match
+              your print or share flow.
             </p>
             <div className="hero-cta">
               <Link to={primaryTarget} className="cta-button primary">
@@ -113,6 +158,51 @@ const LandingPage = () => {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section className="landing-section">
+          <div className="section-header">
+            <h2>How it works</h2>
+            <p>Everything you need to build accurate fretboard diagrams quickly.</p>
+          </div>
+          <div className="section-grid">
+            {STEP_ITEMS.map((item) => (
+              <div key={item.title} className="info-card">
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="landing-section">
+          <div className="section-header">
+            <h2>Common use cases</h2>
+            <p>Built for practice, teaching, and performance planning.</p>
+          </div>
+          <div className="section-grid">
+            {USE_CASES.map((item) => (
+              <div key={item.title} className="info-card">
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="landing-section">
+          <div className="section-header">
+            <h2>FAQ</h2>
+            <p>Quick answers for the most common questions.</p>
+          </div>
+          <div className="section-grid">
+            {FAQ_ITEMS.map((item) => (
+              <div key={item.title} className="info-card">
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+              </div>
+            ))}
           </div>
         </section>
 

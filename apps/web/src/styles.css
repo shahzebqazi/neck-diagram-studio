@@ -1565,6 +1565,11 @@ body {
   border: 2px solid var(--border);
 }
 
+:root[data-theme="high-contrast"] .info-card {
+  background: #000000;
+  border: 2px solid var(--border);
+}
+
 :root[data-theme="high-contrast"] .link-card:hover {
   border-color: var(--accent);
   transform: translateY(-3px);
@@ -1767,6 +1772,40 @@ body {
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+.landing-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.info-card {
+  background: var(--panel);
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.info-card h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.info-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .section-header h2 {
