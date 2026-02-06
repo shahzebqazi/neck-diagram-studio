@@ -13,6 +13,7 @@ import {
 import { getStandardTuning } from "../state/defaults";
 
 const MIN_NOTE_RADIUS = 8;
+const NOTE_TAP_THRESHOLD = 4;
 const ROOT_NOTE_COLOR = "var(--note-root)";
 const NOTE_IN_SCALE_COLOR = "var(--note-in-scale)";
 const NOTE_OUT_SCALE_COLOR = "var(--note-out-scale)";
@@ -102,6 +103,11 @@ const NeckDiagram = ({
 }: Props) => {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const renameInputRef = useRef<HTMLInputElement | null>(null);
+  const notePointerRef = useRef<{
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null>(null);
   const { config } = diagram;
   const noteRadius = Math.max(MIN_NOTE_RADIUS, diagram.height / 18);
   const noteFontBase = Math.max(8, Math.min(noteRadius * 1.2, 18));
@@ -111,13 +117,16 @@ const NeckDiagram = ({
   const fretNumberHeight = Math.max(12, Math.round(noteRadius * 1.2));
   const fretboardWidth = Math.max(1, diagram.width - openStringPad - rightPad);
   const stringHeight = Math.max(1, diagram.height - verticalPad * 2);
+  const rawAngle = config.multiscaleAngle ?? 0;
+  const multiscaleAngle = Number.isFinite(rawAngle) ? rawAngle : 0;
+  const angleRadians = (multiscaleAngle * Math.PI) / 180;
+  const angleSlope = Math.tan(angleRadians);
+  const angleOffset = angleSlope * (diagram.height / 2);
 
   const fretPositions = useMemo(
     () =>
-      getFretPositions(config.scaleLength, config.frets, fretboardWidth).map(
-        (position) => position + openStringPad
-      ),
-    [config.frets, config.scaleLength, fretboardWidth, openStringPad]
+      getFretPositions(config.frets, fretboardWidth).map((position) => position + openStringPad),
+    [config.frets, fretboardWidth, openStringPad]
   );
 
   const stringPositions = useMemo(
@@ -148,33 +157,65 @@ const NeckDiagram = ({
     return new Set(scaleIntervals.map((interval) => (rootIndex + interval) % 12));
   }, [rootKey, scaleIntervals, rootIndex]);
 
-  const handlePointerDown = (event: PointerEvent<SVGSVGElement>) => {
+  const getLocalPoint = (event: PointerEvent<SVGSVGElement>) => {
+    const bounds = svgRef.current?.getBoundingClientRect();
+    if (!bounds) return null;
+    const zoomFactor = zoom || 1;
+    return {
+      x: (event.clientX - bounds.left) / zoomFactor,
+      y: (event.clientY - bounds.top) / zoomFactor
+    };
+  };
+
+  const handleNotePointerDown = (event: PointerEvent<SVGSVGElement>) => {
     if (event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     if (!selected) return;
-    const bounds = svgRef.current?.getBoundingClientRect();
-    if (!bounds) return;
+    const point = getLocalPoint(event);
+    if (!point) return;
+    notePointerRef.current = {
+      startX: point.x,
+      startY: point.y,
+      moved: false
+    };
+  };
 
-    const zoomFactor = zoom || 1;
-    const localX = (event.clientX - bounds.left) / zoomFactor;
-    const localY = (event.clientY - bounds.top) / zoomFactor;
+  const handleNotePointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    const current = notePointerRef.current;
+    if (!current) return;
+    const point = getLocalPoint(event);
+    if (!point) return;
+    const dx = point.x - current.startX;
+    const dy = point.y - current.startY;
+    if (Math.hypot(dx, dy) >= NOTE_TAP_THRESHOLD) {
+      current.moved = true;
+    }
+  };
 
+  const handleNotePointerUp = (event: PointerEvent<SVGSVGElement>) => {
+    const current = notePointerRef.current;
+    notePointerRef.current = null;
+    if (!current || current.moved) return;
+    const point = getLocalPoint(event);
+    if (!point) return;
+    const adjustedX = point.x - angleSlope * (point.y - diagram.height / 2);
     const fret =
-      localX < openStringPad
+      adjustedX < openStringPad
         ? -1
-        : clamp(findFretAtX(fretPositions, localX), 0, config.frets - 1);
+        : clamp(findFretAtX(fretPositions, adjustedX), 0, config.frets - 1);
     const spacing =
       config.strings <= 1 ? stringHeight : stringHeight / (config.strings - 1);
     const rawIndex =
       config.strings <= 1
         ? 0
-        : clamp(Math.round((localY - verticalPad) / spacing), 0, config.strings - 1);
+        : clamp(Math.round((point.y - verticalPad) / spacing), 0, config.strings - 1);
     const stringIndex = config.strings - 1 - rawIndex;
-
     onToggleNote(stringIndex, fret);
   };
 
-  const angleOffset = 0;
+  const clearNotePointer = () => {
+    notePointerRef.current = null;
+  };
 
   useEffect(() => {
     if (!isRenaming) return;
@@ -193,7 +234,11 @@ const NeckDiagram = ({
         width={diagram.width}
         height={diagram.height}
         data-diagram-id={diagram.id}
-        onPointerDown={handlePointerDown}
+        onPointerDown={handleNotePointerDown}
+        onPointerMove={handleNotePointerMove}
+        onPointerUp={handleNotePointerUp}
+        onPointerLeave={clearNotePointer}
+        onPointerCancel={clearNotePointer}
       >
         <rect
           x={0}

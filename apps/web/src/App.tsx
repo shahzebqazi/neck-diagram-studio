@@ -24,6 +24,15 @@ import { fetchLastProject, createProject, updateProject, fetchLibrary } from "./
 import { loadLocalProject, saveLocalProject } from "./lib/storage";
 import { useDebouncedEffect } from "./lib/hooks";
 import { DEFAULT_KEYS, DEFAULT_MODES, DEFAULT_POSITIONS, DEFAULT_SCALES } from "./lib/libraryDefaults";
+import {
+  createDefaultTab,
+  buildDiagramExportPayload,
+  buildPageExportPayload,
+  normalizeImportedDiagram,
+  parseProjectPayload,
+  safeJsonParse,
+  stripScaleLength
+} from "./lib/projectData";
 import { getNoteIndex, noteNameToIndex } from "./lib/neckMath";
 
 const MIN_WIDTH = 260;
@@ -38,6 +47,7 @@ const GRID_SIZE = 32;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.1;
+const DRAG_THRESHOLD = 4;
 const US_LETTER_SIZE = { width: 816, height: 1056 };
 const OUTLINE_PADDING = 32;
 const TILE_GAP = 24;
@@ -51,7 +61,7 @@ const THEMES = [
   {
     id: "jaffa-cake",
     label: "Jaffa Cake",
-    preview: "linear-gradient(135deg, #0b1015 0%, #111821 50%, #ffb347 100%)"
+    preview: "linear-gradient(135deg, #0b0f14 0%, #111821 50%, #ff7a18 100%)"
   },
   {
     id: "light",
@@ -76,11 +86,11 @@ const THEMES = [
   {
     id: "oled-blackout",
     label: "OLED Blackout",
-    preview: "linear-gradient(135deg, #000000 0%, #050505 50%, #ff8c2a 100%)"
+    preview: "linear-gradient(135deg, #000000 0%, #111111 50%, #ff3b3b 100%)"
   }
 ] as const;
 type ThemeId = (typeof THEMES)[number]["id"];
-const DEFAULT_THEME: ThemeId = "jaffa-cake";
+const DEFAULT_THEME: ThemeId = "high-contrast";
 const isThemeId = (value: string): value is ThemeId =>
   THEMES.some((theme) => theme.id === value);
 const POSITION_PRESETS: Record<
@@ -129,6 +139,7 @@ type DragState = {
   startX: number;
   startY: number;
   origin: { x: number; y: number; width: number; height: number };
+  hasMoved: boolean;
 };
 
 const normalizeNoteName = (value: string) => {
@@ -262,11 +273,6 @@ const getTabDisplayName = (tab: ProjectTab, index: number) => {
   }
   return trimmed || `Tab ${index + 1}`;
 };
-
-const createDefaultTab = (name = "Tab 1"): ProjectTab => ({
-  id: crypto.randomUUID(),
-  name
-});
 
 const getPositionPreset = (positionName?: string) => {
   if (!positionName) return null;
@@ -611,6 +617,10 @@ const App = ({ mode = "studio" }: AppProps) => {
       project.data.diagrams.some(
         (diagram) => !diagram.tabId || !tabs.some((tab) => tab.id === diagram.tabId)
       );
+    const needsConfigCleanup = project.data.diagrams.some((diagram) => {
+      if (!diagram.config || typeof diagram.config !== "object") return false;
+      return "scaleLength" in (diagram.config as Record<string, unknown>);
+    });
     const needsNoteCleanup = project.data.diagrams.some((diagram) => {
       const seen = new Set<string>();
       for (const note of diagram.notes) {
@@ -627,7 +637,8 @@ const App = ({ mode = "studio" }: AppProps) => {
       !needsTheoryMigration &&
       !needsNoteCleanup &&
       !needsTabMigration &&
-      !needsLayoutMigration
+      !needsLayoutMigration &&
+      !needsConfigCleanup
     ) {
       return;
     }
@@ -644,7 +655,8 @@ const App = ({ mode = "studio" }: AppProps) => {
           ? diagram.positionId ?? data.positionId
           : diagram.positionId,
         notes: needsNoteCleanup ? normalizeNotes(diagram.notes) : diagram.notes,
-        layoutMode: needsLayoutMigration ? diagram.layoutMode ?? "grid" : diagram.layoutMode
+        layoutMode: needsLayoutMigration ? diagram.layoutMode ?? "grid" : diagram.layoutMode,
+        config: needsConfigCleanup ? stripScaleLength(diagram.config) : diagram.config
       }))
     }));
   }, [project]);
@@ -833,6 +845,17 @@ const App = ({ mode = "studio" }: AppProps) => {
       const zoomFactor = canvasZoom || 1;
       const dx = (event.clientX - dragState.startX) / zoomFactor;
       const dy = (event.clientY - dragState.startY) / zoomFactor;
+      const distance = Math.hypot(dx, dy);
+
+      if (!dragState.hasMoved && distance < DRAG_THRESHOLD) {
+        return;
+      }
+
+      if (!dragState.hasMoved) {
+        dragState.hasMoved = true;
+        setDragMode(dragState.mode);
+        setDraggingDiagramId(dragState.mode === "move" ? dragState.id : null);
+      }
 
       if (dragState.mode === "move") {
         const overTrash = isOverTrash(dragState.id);
@@ -849,10 +872,10 @@ const App = ({ mode = "studio" }: AppProps) => {
             const nextX = dragState.origin.x + dx;
             const nextY = dragState.origin.y + dy;
             if (!diagram.config.snapToGrid) {
-              return { ...diagram, x: nextX, y: nextY };
+              return { ...diagram, x: nextX, y: nextY, layoutMode: "float" };
             }
             const snap = (value: number) => Math.round(value / GRID_SIZE) * GRID_SIZE;
-            return { ...diagram, x: snap(nextX), y: snap(nextY) };
+            return { ...diagram, x: snap(nextX), y: snap(nextY), layoutMode: "float" };
           }
           if (dragState.mode === "resize") {
             return {
@@ -888,10 +911,15 @@ const App = ({ mode = "studio" }: AppProps) => {
 
     const handleUp = (event: PointerEvent) => {
       const dragState = dragRef.current;
+      const didMove = dragState?.hasMoved ?? false;
       const shouldDelete =
-        dragState?.mode === "move" && dragState?.id ? isOverTrash(dragState.id) : false;
+        didMove && dragState?.mode === "move" && dragState?.id
+          ? isOverTrash(dragState.id)
+          : false;
       const dropTabId =
-        dragState?.mode === "move" ? getTabDropTarget(event.clientX, event.clientY) : null;
+        didMove && dragState?.mode === "move"
+          ? getTabDropTarget(event.clientX, event.clientY)
+          : null;
       const shouldMove =
         dropTabId && dragState?.id && dropTabId !== activeTabId ? dropTabId : null;
       dragRef.current = null;
@@ -899,6 +927,7 @@ const App = ({ mode = "studio" }: AppProps) => {
       setDragMode(null);
       setDraggingDiagramId(null);
       setTrashHoverDiagramId(null);
+      if (!didMove) return;
       if (shouldDelete && dragState?.id) {
         requestDeleteRef.current({ type: "diagram", id: dragState.id });
         return;
@@ -1353,15 +1382,10 @@ const App = ({ mode = "studio" }: AppProps) => {
     handleSelectDiagram(diagram.id);
 
     if (event.button !== 0) return;
-    let mode: DragMode | null = null;
-    if (event.metaKey || event.ctrlKey) {
-      mode = "move";
-    } else if (event.altKey) {
+    if (isEditableTarget(event.target)) return;
+    let mode: DragMode = "move";
+    if (event.altKey) {
       mode = event.shiftKey ? "scale" : "resize";
-    }
-    if (!mode) return;
-    if (mode === "move" && diagram.layoutMode !== "float") {
-      updateDiagram(diagram.id, (item) => ({ ...item, layoutMode: "float" }));
     }
     dragRef.current = {
       id: diagram.id,
@@ -1373,11 +1397,12 @@ const App = ({ mode = "studio" }: AppProps) => {
         y: diagram.y,
         width: diagram.width,
         height: diagram.height
-      }
+      },
+      hasMoved: false
     };
     setDragging(true);
-    setDragMode(mode);
-    setDraggingDiagramId(mode === "move" ? diagram.id : null);
+    setDragMode(null);
+    setDraggingDiagramId(null);
     setTrashHoverDiagramId(null);
   };
 
@@ -1444,82 +1469,13 @@ const App = ({ mode = "studio" }: AppProps) => {
     return `neck-diagram-${diagram.id.slice(0, 6)}`;
   };
 
-  const normalizeProjectData = (data: ProjectData) => {
-    const now = new Date().toISOString();
-    const incomingTabs = Array.isArray(data.tabs) ? data.tabs.filter((tab) => tab?.id) : [];
-    const tabs = incomingTabs.length > 0 ? incomingTabs : [createDefaultTab()];
-    const activeTabId =
-      data.activeTabId && tabs.some((tab) => tab.id === data.activeTabId)
-        ? data.activeTabId
-        : tabs[0].id;
-    const diagrams = Array.isArray(data.diagrams)
-      ? data.diagrams.map((diagram) => ({
-          ...diagram,
-          tabId: tabs.some((tab) => tab.id === diagram.tabId) ? diagram.tabId : activeTabId,
-          layoutMode: diagram.layoutMode ?? "grid"
-        }))
-      : [];
-    const diagramsInActiveTab = diagrams.filter((diagram) => diagram.tabId === activeTabId);
-    const selectedDiagramId =
-      data.selectedDiagramId &&
-      diagrams.some((diagram) => diagram.id === data.selectedDiagramId)
-        ? data.selectedDiagramId
-        : undefined;
-    return {
-      ...data,
-      diagrams,
-      tabs,
-      activeTabId,
-      selectedDiagramId,
-      createdAt: data.createdAt ?? now,
-      updatedAt: now
-    };
-  };
-
-  const parseProjectPayload = (parsed: unknown) => {
-    const fallback = { title: null as string | null, data: null as ProjectData | null };
-    if (!parsed || typeof parsed !== "object") return fallback;
-    const record = parsed as { title?: unknown; data?: unknown };
-    const title = typeof record.title === "string" ? record.title.trim() : null;
-    if (record.data && typeof record.data === "object" && Array.isArray((record.data as ProjectData).diagrams)) {
-      return { title, data: normalizeProjectData(record.data as ProjectData) };
-    }
-    if (Array.isArray((parsed as ProjectData).diagrams)) {
-      return { title, data: normalizeProjectData(parsed as ProjectData) };
-    }
-    return fallback;
-  };
-
-  const normalizeImportedDiagram = (
-    diagram: NeckDiagram,
-    tabId: string,
-    existingIds: Set<string>
-  ) => {
-    const nextId = diagram.id && !existingIds.has(diagram.id) ? diagram.id : crypto.randomUUID();
-    existingIds.add(nextId);
-    const config = { ...DEFAULT_NECK_CONFIG, ...(diagram.config ?? {}) };
-    return createNeckDiagram({
-      ...diagram,
-      id: nextId,
-      tabId,
-      layoutMode: diagram.layoutMode ?? "grid",
-      config,
-      notes: Array.isArray(diagram.notes) ? diagram.notes : [],
-      labelMode: diagram.labelMode ?? "key"
-    });
-  };
-
   const exportSelectedDiagramJson = () => {
     if (!selectedDiagram) return;
     const theoryName = getDiagramTheoryName(selectedDiagram);
     const baseName = theoryName || selectedDiagram.name || "diagram";
     const filename = `${slugify(baseName) || "diagram"}.json`;
     const exportedAt = new Date().toISOString();
-    const payload = {
-      diagram: selectedDiagram,
-      exportedAt,
-      version: 1
-    };
+    const payload = buildDiagramExportPayload(selectedDiagram, exportedAt);
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -1551,24 +1507,14 @@ const App = ({ mode = "studio" }: AppProps) => {
     });
     const filename = `${slugify(title) || "neck-diagram"}.json`;
     const exportedAt = new Date();
-    const tabId = crypto.randomUUID();
-    const data: ProjectData = {
-      diagrams: diagramsInActiveTab.map((diagram) => ({ ...diagram, tabId })),
-      tabs: [{ id: tabId, name: tabName }],
-      activeTabId: tabId,
-      selectedDiagramId: diagramsInActiveTab[0]?.id,
-      createdAt: project.data.createdAt,
-      updatedAt: new Date().toISOString()
-    };
-    const payload = {
+    const payload = buildPageExportPayload({
       title,
-      data,
-      metadata: {
-        exportedAt: exportedAt.toISOString(),
-        exportedOn: formatExportDate(exportedAt)
-      },
-      version: 1
-    };
+      tabName,
+      diagrams: diagramsInActiveTab,
+      createdAt: project.data.createdAt,
+      exportedAt: exportedAt.toISOString(),
+      exportedOn: formatExportDate(exportedAt)
+    });
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -1580,13 +1526,12 @@ const App = ({ mode = "studio" }: AppProps) => {
 
   const importPagesJson = async (file: File) => {
     const text = await file.text();
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
+    const parsedResult = safeJsonParse(text);
+    if (!parsedResult.ok) {
       window.alert("Invalid JSON file.");
       return;
     }
+    const parsed = parsedResult.value;
 
     const fallbackTitle = file.name.replace(/\.json$/i, "").trim() || "Imported Project";
     const parsedPayload = parseProjectPayload(parsed);
@@ -1682,13 +1627,12 @@ const App = ({ mode = "studio" }: AppProps) => {
 
   const importDiagramJson = async (file: File) => {
     const text = await file.text();
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
+    const parsedResult = safeJsonParse(text);
+    if (!parsedResult.ok) {
       window.alert("Invalid JSON file.");
       return;
     }
+    const parsed = parsedResult.value;
 
     const diagrams: NeckDiagram[] = [];
     if (parsed && typeof parsed === "object") {
@@ -2207,7 +2151,7 @@ const App = ({ mode = "studio" }: AppProps) => {
             onChange={(event) => handleTitleChange(event.target.value)}
           />
           <span className="title-sub">
-            <a href="https://www.iconoclastaud.io/" target="_blank" rel="noreferrer">
+            <a href="https://iconoclastaud.io/" target="_blank" rel="noreferrer">
               Iconoclast Aud.io
             </a>
             <span> // Neck Diagram Studio</span>

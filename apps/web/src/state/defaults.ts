@@ -22,7 +22,6 @@ export const getStandardTuning = (strings: number) => {
 export const DEFAULT_NECK_CONFIG: NeckConfig = {
   strings: 8,
   frets: 12,
-  scaleLength: 25.5,
   capo: 0,
   tuning: DEFAULT_TUNING_8,
   displayStandardTuning: false,
@@ -117,7 +116,6 @@ export const createDemoProject = (): ProjectData => {
         ...DEFAULT_NECK_CONFIG,
         strings: 7,
         frets: 17,
-        scaleLength: 26.5,
         tuning: DEFAULT_TUNING_7,
         displayStandardTuning: true,
         showFretNumbers: true,
@@ -150,7 +148,6 @@ export const createDemoProject = (): ProjectData => {
         ...DEFAULT_NECK_CONFIG,
         strings: 8,
         frets: 12,
-        scaleLength: 27,
         tuning: DEFAULT_TUNING_8,
         highlightRoot: false
       },

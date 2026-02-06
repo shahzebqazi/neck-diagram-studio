@@ -8,12 +8,8 @@ const DemoPage = () => {
         <div className="demo-meta">
           <span className="demo-pill">Demo Mode</span>
           <span>Changes reset when you refresh.</span>
-          <span>Log in to save projects.</span>
         </div>
         <div className="demo-actions">
-          <Link to="/login" className="cta-button ghost">
-            Log In
-          </Link>
           <Link to="/app" className="cta-button primary">
             Open Studio
           </Link>

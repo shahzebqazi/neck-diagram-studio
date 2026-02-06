@@ -14,17 +14,7 @@ const LINK_ITEMS = [
   {
     title: "Creator Website",
     description: "Follow the studio behind the diagrams.",
-    href: "https://www.iconoclastaud.io/"
-  },
-  {
-    title: "Creator Links",
-    description: "All the creator's links in one place.",
-    href: "https://www.iconoclastaud.io/links"
-  },
-  {
-    title: "Donations",
-    description: "Support development and future features.",
-    href: "https://www.iconoclastaud.io/donate"
+    href: "https://iconoclastaud.io/"
   }
 ];
 
@@ -81,18 +71,8 @@ const LandingPage = () => {
           >
             Docs
           </a>
-          <Link
-            to="/login"
-            className={`landing-link${isActive("/login") ? " is-active" : ""}`}
-            aria-current={isActive("/login") ? "page" : undefined}
-          >
-            Log In
-          </Link>
         </div>
         <div className="landing-nav-cta">
-          <Link to="/login" className="cta-button ghost">
-            Sign In
-          </Link>
           <Link to={primaryTarget} className="cta-button primary">
             Open Studio
           </Link>
@@ -103,11 +83,11 @@ const LandingPage = () => {
         <section className="landing-hero">
           <div className="hero-copy">
             <div className="hero-pill">Version 0.1 Preview</div>
-            <h1>Design clean, printable neck diagrams in minutes.</h1>
+            <h1>Design clean, printable guitar neck diagrams in minutes.</h1>
             <p>
-              Neck Diagram Studio is a focused workspace for building guitar neck maps, scale
-              layouts, and practice grids. Drop necks on a blank page, annotate with interval
-              labels, and export layouts that match your print or share flow.
+              Neck Diagram Studio is a focused guitar neck diagram builder for scale maps and
+              practice grids. Drop necks on a blank page, annotate with interval labels, and
+              export layouts that match your print or share flow.
             </p>
             <div className="hero-cta">
               <Link to={primaryTarget} className="cta-button primary">

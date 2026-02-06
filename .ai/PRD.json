@@ -10,8 +10,11 @@
     "Enable drawing notes with label modes: key, interval, or picking direction.",
     "Persist the last opened project so work continues after closing the app.",
     "Offer searchable navigation through a scale/mode/shape library stored in Postgres.",
+    "Provide clear, AI-authored project documentation for users and contributors.",
     "Offer a demo page that showcases the product without requiring login.",
-    "Provide a landing page with a brief project description and key links."
+    "Provide a landing page with a brief project description and key links.",
+    "Ship a reliable import/export flow backed by automated tests.",
+    "Polish the theme palettes and set high-contrast as the default theme."
   ],
   "non_goals": [
     "Multi-user collaboration.",
@@ -52,23 +55,41 @@
       "Create Diagram uses the current key/scale/position selections and adds a new neck when nothing is selected.",
       "Replace Diagram updates only the currently selected neck and preserves its on-canvas position and size."
     ],
+    "documentation": [
+      "An AI agent should generate Markdown docs in /docs that explain setup, architecture, and workflows.",
+      "Include quickstart (install, env vars, database, dev server), data model, and API endpoints.",
+      "Document canvas interactions (select, move, resize, scale), export/import, and persistence behavior.",
+      "Describe demo mode as a sandbox: edits are allowed but reset on refresh.",
+      "Capture deployment notes: GitLab Pages hosting and custom domain neckdiagramstudio.com.",
+      "Use clear, concise language and avoid inventing features not in the codebase or PRD."
+    ],
     "persistence": [
       "Auto-save project to Postgres.",
       "Cache latest project in localStorage for offline recovery."
     ],
     "demo": [
       "Provide a public demo page accessible without login.",
-      "Demo page uses a read-only sample project with preloaded diagrams.",
+      "Demo page uses a sandbox sample project with preloaded diagrams; edits reset on refresh.",
       "Show a clear call-to-action to open the full studio from the demo page."
     ],
     "landing": [
       "Provide a public landing page accessible without login.",
       "Include a brief description of the project.",
-      "Include links to the docs, code repository, the creator's website, the creator's links page, and donations.",
+      "Include links to the docs, code repository (GitLab), and the creator's website.",
+      "Donations link is optional until a wallet URL is available.",
       "Navigation should remain legible on mobile without awkward wrapping (use a compact menu or stacked layout).",
       "Hero copy and CTAs should keep balanced vertical spacing on small screens.",
       "Key links grid should scale to wide screens without excessive empty space.",
       "Show a clear active state in the top navigation."
+    ],
+    "themes": [
+      "Set the default theme to high-contrast.",
+      "OLED blackout theme replaces orange accents with a red/white/gray palette.",
+      "Jaffa Cake theme uses a brighter, more vivid orange accent."
+    ],
+    "testing": [
+      "Add an automated test suite that covers import/export flows for diagrams, pages, and JSON.",
+      "Import/export tests must cover invalid JSON and regression cases."
     ]
   },
   "security_requirements": {
@@ -114,7 +135,7 @@
       "Default diagram label mode is key and notes start empty."
     ],
     "ui_prefs": [
-      "Theme defaults to jaffa-cake unless overridden by neck-diagram:theme.",
+      "Theme defaults to high-contrast unless overridden by neck-diagram:theme.",
       "Sidebar defaults to collapsed unless neck-diagram:sidebar-collapsed is set.",
       "Show page date defaults to false unless neck-diagram:page-date is true.",
       "Delete warning defaults to true unless neck-diagram:delete-warning is false.",
@@ -204,7 +225,7 @@
   "devops": [],
   "hosting": [
     "Use the custom domain neckdiagramstudio.com.",
-    "Host the site via GitLab Pages."
+    "Host the site via GitHub Pages."
   ],
   "git_ops": [
     "Maintain the demo page on a dedicated GitLab branch (separate from main)."

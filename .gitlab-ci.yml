@@ -1,0 +1,11 @@
+image: node
+
+create-pages:
+  pages:
+    publish: public
+  script:
+    - npm ci
+    - npm run build -w apps/web
+    - mv apps/web/dist public
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
