@@ -178,7 +178,8 @@
       "Importing a page JSON into a non-empty project preserves the existing project title.",
       "Picking label mode cycles a note through Down -> Up -> removed even when the note previously lacked a picking value.",
       "GET /api/library validates the type query and returns 400 for invalid values instead of a 500.",
-      "PATCH /api/projects/:id returns 404 for missing ids and 400 for empty patch bodies instead of throwing."
+      "PATCH /api/projects/:id returns 404 for missing ids and 400 for empty patch bodies instead of throwing.",
+      "Transpose setting updates neck diagrams; currently diagrams do not respond when transpose changes."
     ],
     "persistence_tests": [
       "Theme toggle persists across refresh and resets to default if storage contains an invalid theme id.",
