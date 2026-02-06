@@ -88,6 +88,10 @@ type PageExportInput = {
   createdAt: string;
   exportedAt: string;
   exportedOn: string;
+  keyId?: string;
+  scaleId?: string;
+  positionId?: string;
+  searchQuery?: string;
 };
 
 export const buildPageExportPayload = ({
@@ -96,7 +100,11 @@ export const buildPageExportPayload = ({
   diagrams,
   createdAt,
   exportedAt,
-  exportedOn
+  exportedOn,
+  keyId,
+  scaleId,
+  positionId,
+  searchQuery
 }: PageExportInput) => {
   const tabId = crypto.randomUUID();
   const data: ProjectData = {
@@ -104,6 +112,10 @@ export const buildPageExportPayload = ({
     tabs: [{ id: tabId, name: tabName }],
     activeTabId: tabId,
     selectedDiagramId: diagrams[0]?.id,
+    keyId,
+    scaleId,
+    positionId,
+    searchQuery,
     createdAt,
     updatedAt: exportedAt
   };

@@ -28,6 +28,10 @@ const DIAGRAM_NUT = "var(--diagram-nut)";
 const DIAGRAM_CAPO = "var(--diagram-capo)";
 const DIAGRAM_INLAY = "var(--diagram-inlay)";
 const DIAGRAM_SELECTION = "var(--diagram-selection)";
+const FRET_NUMBER_MARGIN = 6;
+const FRET_NUMBER_MIN_FONT = 10;
+const FRET_NUMBER_MAX_FONT = 12;
+const IMPORTANT_FRETS = new Set([12, 24]);
 const INLAY_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
 const DOUBLE_INLAY_FRETS = new Set([12, 24]);
 const toRoman = (value: number) => {
@@ -117,6 +121,10 @@ const NeckDiagram = ({
   const rightPad = Math.max(12, noteEdgePad);
   const verticalPad = Math.max(8, noteEdgePad);
   const fretNumberHeight = Math.max(12, Math.round(noteRadius * 1.2));
+  const fretNumberFontSize = Math.max(
+    FRET_NUMBER_MIN_FONT,
+    Math.min(FRET_NUMBER_MAX_FONT, Math.round(fretNumberHeight * 0.85))
+  );
   const fretboardWidth = Math.max(1, diagram.width - openStringPad - rightPad);
   const stringHeight = Math.max(1, diagram.height - verticalPad * 2);
   const rawAngle = config.multiscaleAngle ?? 0;
@@ -130,6 +138,33 @@ const NeckDiagram = ({
       getFretPositions(config.frets, fretboardWidth).map((position) => position + openStringPad),
     [config.frets, fretboardWidth, openStringPad]
   );
+  const fretNumberLabels = useMemo(() => {
+    if (!config.showFretNumbers) return [];
+    if (fretPositions.length < 2) return [];
+    const minSpacing = Math.min(
+      ...fretPositions.slice(1).map((position, index) => position - fretPositions[index])
+    );
+    const maxLabel =
+      config.fretNumberStyle === "roman" ? toRoman(config.frets) : `${config.frets}`;
+    const charCount = Math.max(1, maxLabel.length);
+    const charWidth = fretNumberFontSize * 0.6;
+    const labelWidth =
+      charCount * charWidth + Math.max(0, charCount - 1) * fretNumberFontSize * 0.04 + 6;
+    const stride =
+      minSpacing > 0 ? Math.max(1, Math.ceil(labelWidth / minSpacing)) : 1;
+    return fretPositions.slice(1).flatMap((position, index) => {
+      const fretNumber = index + 1;
+      if (!IMPORTANT_FRETS.has(fretNumber) && stride > 1 && fretNumber % stride !== 0) {
+        return [];
+      }
+      return [
+        {
+          position,
+          label: config.fretNumberStyle === "roman" ? toRoman(fretNumber) : `${fretNumber}`
+        }
+      ];
+    });
+  }, [config.showFretNumbers, config.fretNumberStyle, config.frets, fretPositions, fretNumberFontSize]);
 
   const stringPositions = useMemo(
     () => getStringPositions(config.strings, stringHeight).map((y) => y + verticalPad),
@@ -152,6 +187,7 @@ const NeckDiagram = ({
         2
       : diagram.height / 2;
   const inlayOffset = Math.max(8, noteRadius * 1.5);
+  const fretNumberExportHeight = config.showFretNumbers ? fretNumberHeight + FRET_NUMBER_MARGIN : 0;
 
   const rootIndex = noteNameToIndex(rootKey ?? null);
   const scaleSet = useMemo(() => {
@@ -232,11 +268,19 @@ const NeckDiagram = ({
       onPointerDown={onPointerDown}
     >
       <svg
-        className="neck-diagram-base"
+        ref={svgRef}
+        className="neck-diagram-svg"
         width={diagram.width}
         height={diagram.height}
         data-diagram-id={diagram.id}
+        data-export-height={fretNumberExportHeight}
         aria-hidden="true"
+        overflow="visible"
+        onPointerDown={handleNotePointerDown}
+        onPointerMove={handleNotePointerMove}
+        onPointerUp={handleNotePointerUp}
+        onPointerLeave={clearNotePointer}
+        onPointerCancel={clearNotePointer}
       >
         <rect
           x={0}
@@ -338,20 +382,6 @@ const NeckDiagram = ({
               );
             })
           : null}
-      </svg>
-      <svg
-        ref={svgRef}
-        className="neck-diagram-notes"
-        width={diagram.width}
-        height={diagram.height}
-        overflow="visible"
-        data-diagram-id={diagram.id}
-        onPointerDown={handleNotePointerDown}
-        onPointerMove={handleNotePointerMove}
-        onPointerUp={handleNotePointerUp}
-        onPointerLeave={clearNotePointer}
-        onPointerCancel={clearNotePointer}
-      >
         {diagram.notes.map((note) => {
           const isOpen = note.fret < 0;
           const start = isOpen ? 0 : (fretPositions[note.fret] ?? openStringPad);
@@ -398,20 +428,26 @@ const NeckDiagram = ({
             </g>
           );
         })}
+        {config.showFretNumbers ? (
+          <g className="fret-number-layer" pointerEvents="none">
+            {fretNumberLabels.map((fret) => (
+              <text
+                key={`fret-number-${fret.label}-${fret.position}`}
+                x={fret.position}
+                y={diagram.height + FRET_NUMBER_MARGIN}
+                textAnchor="middle"
+                dominantBaseline="hanging"
+                fontSize={fretNumberFontSize}
+                letterSpacing="0.04em"
+                fill="var(--muted)"
+                fontFamily="var(--font-ui)"
+              >
+                {fret.label}
+              </text>
+            ))}
+          </g>
+        ) : null}
       </svg>
-      {config.showFretNumbers ? (
-        <div className="fret-numbers" style={{ width: diagram.width, height: fretNumberHeight }}>
-          {fretPositions.slice(1).map((x, index) => (
-            <span
-              key={`fret-number-${index + 1}`}
-              className="fret-number"
-              style={{ left: x }}
-            >
-              {config.fretNumberStyle === "roman" ? toRoman(index + 1) : index + 1}
-            </span>
-          ))}
-        </div>
-      ) : null}
       <div
         className="neck-caption"
         onDoubleClick={(event) => {

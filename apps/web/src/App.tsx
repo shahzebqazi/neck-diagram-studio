@@ -41,6 +41,8 @@ const MAX_WIDTH = 1200;
 const MAX_HEIGHT = 400;
 const EXPORT_SCALE = 2;
 const EXPORT_CAPTION_HEIGHT = 28;
+const FRET_NUMBER_MARGIN = 6;
+const MIN_NOTE_RADIUS = 8;
 const DEFAULT_PROJECT_TITLE = "Untitled Neck Diagram";
 const DEMO_PROJECT_TITLE = "Demo Session";
 const GRID_SIZE = 32;
@@ -181,8 +183,8 @@ const boxesOverlap = (a: NeckDiagram, b: NeckDiagram, gap = TILE_GAP) =>
   !(
     a.x + a.width + gap <= b.x ||
     a.x >= b.x + b.width + gap ||
-    a.y + a.height + gap <= b.y ||
-    a.y >= b.y + b.height + gap
+    a.y + getDiagramExportHeight(a) + gap <= b.y ||
+    a.y >= b.y + getDiagramExportHeight(b) + gap
   );
 
 const EIGHT_STRING_PRESETS = [
@@ -201,8 +203,17 @@ const slugify = (value: string) =>
 
 const getDiagramExportHeight = (diagram: NeckDiagram) => {
   const hasCaption = diagram.name?.trim().length > 0;
-  return diagram.height + (hasCaption ? EXPORT_CAPTION_HEIGHT : 0);
+  const noteRadius = Math.max(MIN_NOTE_RADIUS, diagram.height / 18);
+  const fretNumberHeight = Math.max(12, Math.round(noteRadius * 1.2));
+  const fretNumberArea =
+    diagram.config.showFretNumbers ? fretNumberHeight + FRET_NUMBER_MARGIN : 0;
+  return diagram.height + fretNumberArea + (hasCaption ? EXPORT_CAPTION_HEIGHT : 0);
 };
+
+const toTilingDiagram = (diagram: NeckDiagram): NeckDiagram => ({
+  ...diagram,
+  height: getDiagramExportHeight(diagram)
+});
 
 const svgToImage = (svg: SVGSVGElement, caption?: string) => {
   const clone = svg.cloneNode(true) as SVGSVGElement;
@@ -210,13 +221,15 @@ const svgToImage = (svg: SVGSVGElement, caption?: string) => {
   clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
   const width = Number(svg.getAttribute("width") ?? svg.clientWidth);
   const height = Number(svg.getAttribute("height") ?? svg.clientHeight);
-  let finalHeight = height;
+  const exportExtra = Number(svg.dataset.exportHeight ?? 0);
+  const extraHeight = Number.isFinite(exportExtra) ? exportExtra : 0;
+  let finalHeight = height + extraHeight;
 
   if (caption && caption.trim().length > 0) {
     finalHeight += EXPORT_CAPTION_HEIGHT;
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
     text.setAttribute("x", `${width / 2}`);
-    text.setAttribute("y", `${height + EXPORT_CAPTION_HEIGHT / 2}`);
+    text.setAttribute("y", `${height + extraHeight + EXPORT_CAPTION_HEIGHT / 2}`);
     text.setAttribute("text-anchor", "middle");
     text.setAttribute("dominant-baseline", "middle");
     text.setAttribute(
@@ -710,16 +723,17 @@ const App = ({ mode = "studio" }: AppProps) => {
       a.y === b.y ? a.x - b.x : a.y - b.y
     );
     const placed: NeckDiagram[] = [];
+    const floatingForTile = floatingDiagrams.map(toTilingDiagram);
     const updates = new Map<string, { x: number; y: number }>();
 
     orderedGrid.forEach((diagram) => {
       const position = suggestTile(
-        [...placed, ...floatingDiagrams],
+        [...placed, ...floatingForTile],
         canvasSize,
-        { width: diagram.width, height: diagram.height },
+        { width: diagram.width, height: getDiagramExportHeight(diagram) },
         TILE_GAP
       );
-      placed.push({ ...diagram, x: position.x, y: position.y });
+      placed.push({ ...diagram, x: position.x, y: position.y, height: getDiagramExportHeight(diagram) });
       updates.set(diagram.id, position);
     });
 
@@ -1232,9 +1246,14 @@ const App = ({ mode = "studio" }: AppProps) => {
     );
     const isFirstInTab = diagramsForTile.length === 0;
     const gridDiagrams = diagramsForTile.filter(isGridDiagram);
+    const gridForTile = gridDiagrams.map(toTilingDiagram);
+    const defaultTileSize = {
+      width: DEFAULT_DIAGRAM_SIZE.width,
+      height: DEFAULT_DIAGRAM_SIZE.height + EXPORT_CAPTION_HEIGHT
+    };
     const position = isFirstInTab
       ? getFloatingPosition(DEFAULT_DIAGRAM_SIZE)
-      : suggestTile(gridDiagrams, canvasSize, DEFAULT_DIAGRAM_SIZE, TILE_GAP);
+      : suggestTile(gridForTile, canvasSize, defaultTileSize, TILE_GAP);
     const nameIndex = project.data.diagrams.length + 1;
     const diagram = createNeckDiagram({
       x: position.x,
@@ -1274,9 +1293,14 @@ const App = ({ mode = "studio" }: AppProps) => {
     );
     const isFirstInTab = diagramsForTile.length === 0;
     const gridDiagrams = diagramsForTile.filter(isGridDiagram);
+    const gridForTile = gridDiagrams.map(toTilingDiagram);
+    const defaultTileSize = {
+      width: DEFAULT_DIAGRAM_SIZE.width,
+      height: DEFAULT_DIAGRAM_SIZE.height + EXPORT_CAPTION_HEIGHT
+    };
     const position = isFirstInTab
       ? getFloatingPosition(DEFAULT_DIAGRAM_SIZE)
-      : suggestTile(gridDiagrams, canvasSize, DEFAULT_DIAGRAM_SIZE, TILE_GAP);
+      : suggestTile(gridForTile, canvasSize, defaultTileSize, TILE_GAP);
     const nameIndex = project.data.diagrams.length + 1;
     const generatedName = buildTheoryName(
       project.data.keyId,
@@ -1533,7 +1557,11 @@ const App = ({ mode = "studio" }: AppProps) => {
       diagrams: diagramsInActiveTab,
       createdAt: project.data.createdAt,
       exportedAt: exportedAt.toISOString(),
-      exportedOn: formatExportDate(exportedAt)
+      exportedOn: formatExportDate(exportedAt),
+      keyId: project.data.keyId,
+      scaleId: project.data.scaleId,
+      positionId: project.data.positionId,
+      searchQuery: project.data.searchQuery
     });
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -2624,10 +2652,11 @@ const App = ({ mode = "studio" }: AppProps) => {
                         const gridDiagrams = diagramsInActiveTab.filter(
                           (diagram) => diagram.id !== selectedDiagram.id && isGridDiagram(diagram)
                         );
+                        const gridForTile = gridDiagrams.map(toTilingDiagram);
                         const position = suggestTile(
-                          gridDiagrams,
+                          gridForTile,
                           canvasSize,
-                          { width: selectedDiagram.width, height: selectedDiagram.height },
+                          { width: selectedDiagram.width, height: getDiagramExportHeight(selectedDiagram) },
                           TILE_GAP
                         );
                         updateDiagram(selectedDiagram.id, (diagram) => ({
