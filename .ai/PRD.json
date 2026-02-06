@@ -84,12 +84,14 @@
       "Include a brief description of the project.",
       "Include links to the docs, code repository (GitLab), and the creator's website.",
       "Donations link is optional until a wallet URL is available.",
+      "Allow users to choose a theme on the landing page; the selection should persist and apply when entering the app.",
       "Navigation should remain legible on mobile without awkward wrapping (use a compact menu or stacked layout).",
       "Hero copy and CTAs should keep balanced vertical spacing on small screens.",
       "Key links grid should scale to wide screens without excessive empty space.",
       "Show a clear active state in the top navigation."
     ],
     "themes": [
+      "Default theme for first-time users is high-contrast (when no stored theme is set).",
       "Set the default theme to high-contrast.",
       "OLED blackout theme replaces orange accents with a red/white/gray palette.",
       "Jaffa Cake theme uses a brighter, more vivid orange accent."
@@ -144,7 +146,7 @@
       "Default diagram label mode is key and notes start empty."
     ],
     "ui_prefs": [
-      "Theme defaults to high-contrast unless overridden by neck-diagram:theme.",
+      "Theme defaults to high-contrast for first-time users unless overridden by neck-diagram:theme.",
       "Sidebar defaults to collapsed unless neck-diagram:sidebar-collapsed is set.",
       "Delete warning defaults to true unless neck-diagram:delete-warning is false.",
       "Panels default open: theory, diagram, instrument, settings."
