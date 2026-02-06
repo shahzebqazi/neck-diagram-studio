@@ -3,7 +3,7 @@ image: node:20
 pages:
   stage: deploy
   script:
-    - npm install --no-audit --no-fund
+    - npm ci
     - npm run build -w apps/web
     - mv apps/web/dist public
   artifacts:
