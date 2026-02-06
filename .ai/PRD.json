@@ -21,6 +21,10 @@
     "Realtime sync between devices.",
     "Full music theory engine beyond basic interval/key calculations."
   ],
+  "known_issues": [
+    "Bug: PNG/PDF export does not prompt for a filename; users cannot name the file before download.",
+    "Bug: PNG/PDF export renders black output in some cases; exports must preserve the diagram colors."
+  ],
   "functional_requirements": {
     "canvas": [
       "Blank page on new project.",
@@ -178,6 +182,8 @@
       "Import page JSON merges tabs/diagrams without duplicating ids or breaking selection.",
       "Exporting a page JSON uses the export name for the file only and does not rename the current project title.",
       "Importing a page JSON into a non-empty project preserves the existing project title.",
+      "PNG/PDF export prompts for a filename before download.",
+      "PNG/PDF export preserves diagram colors and does not render black output.",
       "Picking label mode cycles a note through Down -> Up -> removed even when the note previously lacked a picking value.",
       "GET /api/library validates the type query and returns 400 for invalid values instead of a 500.",
       "PATCH /api/projects/:id returns 404 for missing ids and 400 for empty patch bodies instead of throwing.",
