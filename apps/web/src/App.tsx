@@ -289,7 +289,7 @@ const App = () => {
   const [trashHoverDiagramId, setTrashHoverDiagramId] = useState<string | null>(null);
   const [renamingDiagramId, setRenamingDiagramId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
-  const [showPageDate, setShowPageDate] = useState(true);
+  const [showPageDate, setShowPageDate] = useState(false);
   const [panelOpen, setPanelOpen] = useState({
     theory: true,
     diagram: true,
@@ -306,6 +306,7 @@ const App = () => {
   const importMenuRef = useRef<HTMLDivElement | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
   const requestDeleteRef = useRef<(action: DeleteAction | null) => void>(() => {});
+  const expandedSidebarWidthRef = useRef(320);
   const [dragging, setDragging] = useState(false);
   const [dragMode, setDragMode] = useState<DragMode | null>(null);
   const [resizingSidebar, setResizingSidebar] = useState(false);
@@ -443,7 +444,9 @@ const App = () => {
 
   useEffect(() => {
     const stored = localStorage.getItem(PAGE_DATE_STORAGE_KEY);
-    if (stored === "false") {
+    if (stored === "true") {
+      setShowPageDate(true);
+    } else if (stored === "false") {
       setShowPageDate(false);
     }
   }, []);
@@ -455,6 +458,13 @@ const App = () => {
   useEffect(() => {
     localStorage.setItem(SIDEBAR_STATE_STORAGE_KEY, String(sidebarCollapsed));
   }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    if (sidebarCollapsed) return;
+    if (sidebarWidth > MIN_SIDEBAR_WIDTH) {
+      expandedSidebarWidthRef.current = sidebarWidth;
+    }
+  }, [sidebarCollapsed, sidebarWidth]);
 
   useEffect(() => {
     if (!project) return;
@@ -1168,6 +1178,13 @@ const App = () => {
 
   const togglePanel = (panel: keyof typeof panelOpen) => {
     setPanelOpen((prev) => ({ ...prev, [panel]: !prev[panel] }));
+  };
+
+  const openPanelFromCompact = (panel: keyof typeof panelOpen) => {
+    if (!isSidebarCompact) return;
+    const nextWidth = expandedSidebarWidthRef.current || 320;
+    setSidebarWidth(nextWidth);
+    setPanelOpen((prev) => ({ ...prev, [panel]: true }));
   };
 
   const handleSelectDiagram = (diagramId: string) => {
@@ -2350,7 +2367,12 @@ const App = () => {
           style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
         >
           <section className="panel">
-            <div className="panel-header">
+            <div
+              className="panel-header"
+              onClick={() => openPanelFromCompact("theory")}
+              role={isSidebarCompact ? "button" : undefined}
+              tabIndex={isSidebarCompact ? 0 : undefined}
+            >
               <h3 title="Theory">
                 <span className="panel-icon nf-icon" aria-hidden="true">
                   {ICONS.theory}
@@ -2467,7 +2489,12 @@ const App = () => {
           </section>
 
           <section className="panel">
-            <div className="panel-header">
+            <div
+              className="panel-header"
+              onClick={() => openPanelFromCompact("diagram")}
+              role={isSidebarCompact ? "button" : undefined}
+              tabIndex={isSidebarCompact ? 0 : undefined}
+            >
               <h3 title="Diagram">
                 <span className="panel-icon nf-icon" aria-hidden="true">
                   {ICONS.diagram}
@@ -2694,7 +2721,12 @@ const App = () => {
           </section>
 
           <section className="panel">
-            <div className="panel-header">
+            <div
+              className="panel-header"
+              onClick={() => openPanelFromCompact("instrument")}
+              role={isSidebarCompact ? "button" : undefined}
+              tabIndex={isSidebarCompact ? 0 : undefined}
+            >
               <h3 title="Instrument">
                 <span className="panel-icon nf-icon" aria-hidden="true">
                   {ICONS.instrument}
@@ -2764,7 +2796,12 @@ const App = () => {
           </section>
 
           <section className="panel">
-            <div className="panel-header">
+            <div
+              className="panel-header"
+              onClick={() => openPanelFromCompact("settings")}
+              role={isSidebarCompact ? "button" : undefined}
+              tabIndex={isSidebarCompact ? 0 : undefined}
+            >
               <h3 title="Settings">
                 <span className="panel-icon nf-icon" aria-hidden="true">
                   {ICONS.settings}
@@ -2887,15 +2924,34 @@ const App = () => {
           >
             <div className="canvas-zoom" style={{ zoom: canvasZoom }}>
               {sidebarCollapsed && outlineMetrics ? (
-                <div
-                  className="page-outline"
-                  style={{
-                    width: outlineMetrics.width,
-                    height: outlineMetrics.height,
-                    left: outlineMetrics.left,
-                    top: outlineMetrics.top
-                  }}
-                />
+                <>
+                  <div
+                    className="page-outline"
+                    style={{
+                      width: outlineMetrics.width,
+                      height: outlineMetrics.height,
+                      left: outlineMetrics.left,
+                      top: outlineMetrics.top
+                    }}
+                  />
+                  {(hasCustomTabTitle || showPageDate) ? (
+                    <div
+                      className="page-header"
+                      style={{
+                        width: outlineMetrics.width,
+                        left: outlineMetrics.left,
+                        top: outlineMetrics.top
+                      }}
+                    >
+                      {hasCustomTabTitle ? (
+                        <div className="page-title">{activeTabName}</div>
+                      ) : null}
+                      {showPageDate ? (
+                        <div className="page-date">{formatExportDate(new Date())}</div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </>
               ) : null}
               {diagramsInActiveTab.map((diagram) => {
                 const diagramKey = diagram.keyId ? libraryIndex[diagram.keyId] : undefined;
