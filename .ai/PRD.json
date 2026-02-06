@@ -164,7 +164,12 @@
       "Active tab id referencing a missing tab falls back to the first available tab.",
       "Export operations succeed with zero diagrams and with large diagrams.",
       "Import invalid JSON does not mutate state and surfaces a clear error.",
-      "Import page JSON merges tabs/diagrams without duplicating ids or breaking selection."
+      "Import page JSON merges tabs/diagrams without duplicating ids or breaking selection.",
+      "Exporting a page JSON uses the export name for the file only and does not rename the current project title.",
+      "Importing a page JSON into a non-empty project preserves the existing project title.",
+      "Picking label mode cycles a note through Down -> Up -> removed even when the note previously lacked a picking value.",
+      "GET /api/library validates the type query and returns 400 for invalid values instead of a 500.",
+      "PATCH /api/projects/:id returns 404 for missing ids and 400 for empty patch bodies instead of throwing."
     ],
     "persistence_tests": [
       "Theme toggle persists across refresh and resets to default if storage contains an invalid theme id.",
