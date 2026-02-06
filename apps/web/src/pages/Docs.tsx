@@ -1,82 +1,52 @@
+import { type ReactNode } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Link, usePathname } from "../lib/router";
+import userGuide from "../../../../docs/USER_GUIDE.md?raw";
 
-const TOC_ITEMS = [
-  { id: "overview", label: "Overview" },
-  { id: "quickstart", label: "Quick start" },
-  { id: "concepts", label: "Core concepts" },
-  { id: "diagram-workflows", label: "Diagram workflows" },
-  { id: "labels-theory", label: "Labels & theory" },
-  { id: "layout", label: "Layout & appearance" },
-  { id: "import-export", label: "Import & export" },
-  { id: "autosave", label: "Auto-save & recovery" },
-  { id: "shortcuts", label: "Shortcuts" },
-  { id: "troubleshooting", label: "Troubleshooting" },
-  { id: "faq", label: "FAQ" }
-];
+type TocItem = { id: string; label: string };
 
-const CONCEPT_CARDS = [
-  {
-    title: "Project",
-    description:
-      "Your full workspace. The studio auto-saves when the API is reachable and caches locally when offline."
-  },
-  {
-    title: "Tab",
-    description:
-      "A page inside the project. Use tabs for alternate layouts, positions, or lesson pages."
-  },
-  {
-    title: "Diagram",
-    description:
-      "A single neck diagram that you can move, resize, label, and export independently."
-  },
-  {
-    title: "Library",
-    description:
-      "Searchable keys, scales/modes, and positions used for labeling and diagram creation."
-  },
-  {
-    title: "Label mode",
-    description:
-      "Controls whether notes show key names, intervals, or picking directions."
-  },
-  {
-    title: "Notes",
-    description:
-      "Click on the fretboard to toggle notes. In picking mode, clicks cycle D → U → off."
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const extractTitle = (markdown: string) => {
+  const match = markdown.match(/^#\s+(.+)$/m);
+  return match?.[1]?.trim() || "User Guide";
+};
+
+const extractLastUpdated = (markdown: string) => {
+  const match = markdown.match(/^Last updated:\s*(.+)$/m);
+  return match?.[1]?.trim() || "Unknown";
+};
+
+const extractToc = (markdown: string): TocItem[] =>
+  markdown
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("## "))
+    .map((line) => {
+      const label = line.replace(/^##\s+/, "").trim();
+      return { id: slugify(label), label };
+    });
+
+const getText = (node: ReactNode): string => {
+  if (typeof node === "string") return node;
+  if (typeof node === "number") return `${node}`;
+  if (Array.isArray(node)) return node.map(getText).join("");
+  if (node && typeof node === "object" && "props" in node) {
+    const props = node as { props?: { children?: ReactNode } };
+    return getText(props.props?.children ?? "");
   }
-];
+  return "";
+};
 
-const EXPORT_ROWS = [
-  {
-    format: "Diagram PNG",
-    scope: "Selected diagram",
-    useCase: "High-resolution images for slides, handouts, or reference sheets."
-  },
-  {
-    format: "Diagram JSON",
-    scope: "Selected diagram",
-    useCase: "Reuse a single diagram in another project."
-  },
-  {
-    format: "Page PDF / PNG",
-    scope: "Active tab",
-    useCase: "Printable page of your arranged diagrams."
-  },
-  {
-    format: "Page JSON",
-    scope: "Active tab",
-    useCase: "Backup or transfer a full tab layout."
-  }
-];
-
-const SHORTCUT_ROWS = [
-  { keys: "Escape", action: "Clear the current selection." },
-  { keys: "Delete / Backspace", action: "Delete the selected diagram or tab." },
-  { keys: "Cmd/Ctrl + /", action: "Toggle the sidebar." },
-  { keys: "Alt + drag", action: "Resize the selected diagram." },
-  { keys: "Alt + Shift + drag", action: "Scale the selected diagram proportionally." }
-];
+const title = extractTitle(userGuide);
+const lastUpdated = extractLastUpdated(userGuide);
+const tocItems = extractToc(userGuide);
 
 const DocsPage = () => {
   const pathname = usePathname();
