@@ -1383,6 +1383,7 @@ const App = ({ mode = "studio" }: AppProps) => {
 
     if (event.button !== 0) return;
     if (isEditableTarget(event.target)) return;
+    event.preventDefault();
     let mode: DragMode = "move";
     if (event.altKey) {
       mode = event.shiftKey ? "scale" : "resize";

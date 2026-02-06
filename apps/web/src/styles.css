@@ -1458,6 +1458,12 @@ body {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid var(--border);
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+
+  .canvas {
+    min-height: 60vh;
   }
 
   .toolbar {
