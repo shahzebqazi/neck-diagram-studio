@@ -142,6 +142,13 @@ type DragState = {
   hasMoved: boolean;
 };
 
+type OutlineMetrics = {
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+};
+
 const normalizeNoteName = (value: string) => {
   const trimmed = value.trim();
   if (!trimmed) return "";
@@ -403,6 +410,7 @@ const App = ({ mode = "studio" }: AppProps) => {
   const [dragging, setDragging] = useState(false);
   const [dragMode, setDragMode] = useState<DragMode | null>(null);
   const [resizingSidebar, setResizingSidebar] = useState(false);
+  const [outlineLocked, setOutlineLocked] = useState<OutlineMetrics | null>(null);
   const isSidebarCompact = !sidebarCollapsed && sidebarWidth <= MIN_SIDEBAR_WIDTH;
 
   const tabs = (project?.data.tabs ?? []).filter((tab) => tab?.id);
@@ -469,6 +477,16 @@ const App = ({ mode = "studio" }: AppProps) => {
       top: centerY - height / 2
     };
   }, [sidebarCollapsed, diagramsInActiveTab, canvasSize, canvasZoom, sidebarOffset]);
+
+  useEffect(() => {
+    if (dragging && sidebarCollapsed) {
+      setOutlineLocked((prev) => prev ?? outlineMetrics);
+      return;
+    }
+    if (!dragging) {
+      setOutlineLocked(null);
+    }
+  }, [dragging, sidebarCollapsed]);
 
   const selectedKey = project?.data.keyId ? libraryIndex[project.data.keyId] : undefined;
   const selectedScale = project?.data.scaleId ? libraryIndex[project.data.scaleId] : undefined;
@@ -3012,14 +3030,14 @@ const App = ({ mode = "studio" }: AppProps) => {
             style={{ backgroundSize: `${GRID_SIZE * canvasZoom}px ${GRID_SIZE * canvasZoom}px` }}
           >
             <div className="canvas-zoom" style={{ zoom: canvasZoom }}>
-              {sidebarCollapsed && outlineMetrics ? (
+              {sidebarCollapsed && (outlineLocked ?? outlineMetrics) ? (
                 <div
                   className="page-frame"
                   style={{
-                    width: outlineMetrics.width,
-                    height: outlineMetrics.height,
-                    left: outlineMetrics.left,
-                    top: outlineMetrics.top
+                    width: (outlineLocked ?? outlineMetrics)!.width,
+                    height: (outlineLocked ?? outlineMetrics)!.height,
+                    left: (outlineLocked ?? outlineMetrics)!.left,
+                    top: (outlineLocked ?? outlineMetrics)!.top
                   }}
                 >
                   <div className="page-outline" />

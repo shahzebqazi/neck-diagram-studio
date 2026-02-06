@@ -1499,22 +1499,18 @@ body {
 :root[data-theme="high-contrast"] .landing-page {
   background:
     repeating-linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.08) 0,
-      rgba(255, 255, 255, 0.08) 2px,
+      90deg,
+      rgba(255, 255, 255, 0.06) 0,
+      rgba(255, 255, 255, 0.06) 2px,
       transparent 2px,
-      transparent 16px
+      transparent 18px
     ),
-    radial-gradient(circle at 12% 18%, rgba(255, 212, 0, 0.25), transparent 50%),
-    radial-gradient(circle at 88% 12%, rgba(255, 255, 255, 0.14), transparent 45%),
     var(--bg);
 }
 
 :root[data-theme="high-contrast"] .landing-page::after {
-  background:
-    linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 45%),
-    linear-gradient(300deg, rgba(255, 212, 0, 0.18), transparent 40%);
-  opacity: 0.6;
+  background: none;
+  opacity: 0;
 }
 
 :root[data-theme="high-contrast"] .landing-nav {
@@ -1545,7 +1541,7 @@ body {
 
 :root[data-theme="high-contrast"] .hero-pill {
   background: #000000;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   color: var(--accent);
 }
 
@@ -1557,30 +1553,31 @@ body {
 
 :root[data-theme="high-contrast"] .hero-card {
   background: #000000;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
+  box-shadow: none;
 }
 
+:root[data-theme="high-contrast"] .info-card,
 :root[data-theme="high-contrast"] .link-card {
   background: #000000;
   border: 2px solid var(--border);
-}
-
-:root[data-theme="high-contrast"] .info-card {
-  background: #000000;
-  border: 2px solid var(--border);
+  box-shadow: none;
 }
 
 :root[data-theme="high-contrast"] .link-card:hover {
   border-color: var(--accent);
-  transform: translateY(-3px);
+  transform: translateY(-2px);
 }
 
 :root[data-theme="high-contrast"] .cta-button.primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: 2px solid var(--accent);
   box-shadow: none;
 }
 
 :root[data-theme="high-contrast"] .cta-button.ghost {
-  border-color: var(--border);
+  border: 2px solid var(--border);
 }
 
 .landing-nav {

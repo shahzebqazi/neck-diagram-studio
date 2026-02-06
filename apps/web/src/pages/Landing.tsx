@@ -20,46 +20,46 @@ const LINK_ITEMS = [
 
 const FEATURE_ITEMS = [
   {
-    title: "Excalidraw-inspired canvas",
-    description: "Drop, resize, and align fretboard diagrams on a clean workspace."
+    title: "Blank canvas layout",
+    description: "Start from a clean canvas and place neck diagrams exactly where you want."
   },
   {
-    title: "Scale and mode library",
-    description: "Search by key, scale, or position to highlight intervals fast."
+    title: "Key + scale labeling",
+    description: "Show note names, intervals, or picking direction with one click."
   },
   {
     title: "Export-ready layouts",
-    description: "Export PNG, PDF, and JSON layouts that match your print flow."
+    description: "Export PNG, PDF, or JSON pages that match the on‑screen layout."
   }
 ];
 
 const STEP_ITEMS = [
   {
-    title: "Start with a blank canvas",
-    description: "Create a new project and drop in guitar neck diagrams."
+    title: "Start a project",
+    description: "Open a blank canvas and add a neck diagram to begin."
   },
   {
     title: "Arrange and label",
-    description: "Move, resize, and label notes by key, interval, or picking direction."
+    description: "Move, resize, and label notes by key, interval, or picking."
   },
   {
     title: "Export and share",
-    description: "Save layouts as PNG/PDF or JSON for backup and reuse."
+    description: "Save layouts as PNG, PDF, or JSON for reuse and backup."
   }
 ];
 
 const USE_CASES = [
   {
     title: "Scale practice charts",
-    description: "Build consistent scale maps across multiple positions."
+    description: "Build scale maps across positions without redrawing."
   },
   {
     title: "Lesson handouts",
-    description: "Create clean, printable fretboard diagrams for students."
+    description: "Create clean, printable fretboard diagrams for lessons."
   },
   {
     title: "Song mapping",
-    description: "Track chord tones and interval targets per diagram."
+    description: "Track interval targets and note choices per diagram."
   }
 ];
 
@@ -128,11 +128,11 @@ const LandingPage = () => {
         <section className="landing-hero">
           <div className="hero-copy">
             <div className="hero-pill">Version 0.1 Preview</div>
-            <h1>Design clean, printable guitar neck diagrams and fretboard charts.</h1>
+            <h1>Guitar neck diagrams for practice, lessons, and layout.</h1>
             <p>
-              Neck Diagram Studio is a guitar neck diagram builder for scale maps and practice
-              grids. Start from a blank canvas, annotate intervals, and export layouts that match
-              your print or share flow.
+              Neck Diagram Studio is a browser‑based tool for creating guitar neck diagrams.
+              Build scale maps, add labels, and export clean PNG or PDF layouts that match what
+              you see on screen.
             </p>
             <div className="hero-cta">
               <Link to={primaryTarget} className="cta-button primary">
@@ -143,13 +143,13 @@ const LandingPage = () => {
               </Link>
             </div>
             <div className="hero-meta">
-              <span>Offline-safe caching</span>
-              <span>Auto-save with Postgres</span>
-              <span>Tabs for quick variations</span>
+              <span>Auto‑save with Postgres</span>
+              <span>Offline recovery cache</span>
+              <span>Tabs for variations</span>
             </div>
           </div>
           <div className="hero-panel">
-            <div className="hero-panel-header">What you can do</div>
+            <div className="hero-panel-header">Core features</div>
             <div className="hero-panel-grid">
               {FEATURE_ITEMS.map((feature) => (
                 <div key={feature.title} className="hero-card">
@@ -164,7 +164,7 @@ const LandingPage = () => {
         <section className="landing-section">
           <div className="section-header">
             <h2>How it works</h2>
-            <p>Everything you need to build accurate fretboard diagrams quickly.</p>
+            <p>A simple workflow for clean, printable diagrams.</p>
           </div>
           <div className="section-grid">
             {STEP_ITEMS.map((item) => (
@@ -179,7 +179,7 @@ const LandingPage = () => {
         <section className="landing-section">
           <div className="section-header">
             <h2>Common use cases</h2>
-            <p>Built for practice, teaching, and performance planning.</p>
+            <p>Designed for practice, teaching, and layout planning.</p>
           </div>
           <div className="section-grid">
             {USE_CASES.map((item) => (
@@ -194,7 +194,7 @@ const LandingPage = () => {
         <section className="landing-section">
           <div className="section-header">
             <h2>FAQ</h2>
-            <p>Quick answers for the most common questions.</p>
+            <p>Quick answers to common questions.</p>
           </div>
           <div className="section-grid">
             {FAQ_ITEMS.map((item) => (
@@ -206,10 +206,21 @@ const LandingPage = () => {
           </div>
         </section>
 
+        <section className="landing-section">
+          <div className="section-header">
+            <h2>Popular searches</h2>
+            <p>
+              Guitar neck diagram, fretboard diagram, guitar scale chart, scale map,
+              interval chart, fretboard notes, guitar practice chart, guitar lesson handout,
+              printable fretboard, neck diagram builder.
+            </p>
+          </div>
+        </section>
+
         <section className="landing-links">
           <div className="section-header">
             <h2>Key Links</h2>
-            <p>Jump to docs, source, and the creator's pages.</p>
+            <p>Documentation, source, and creator links.</p>
           </div>
           <div className="link-grid">
             {LINK_ITEMS.map((item) => (
