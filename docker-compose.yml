@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: neck
+      POSTGRES_PASSWORD: neck
+      POSTGRES_DB: neck_diagram
+    ports:
+      - "5432:5432"
+    volumes:
+      - neck_diagram_data:/var/lib/postgresql/data
+volumes:
+  neck_diagram_data:

@@ -1,0 +1,93 @@
+{
+  "project": "Neck Diagram Studio",
+  "version": "0.1.0",
+  "date": "2026-02-04",
+  "summary": "A TypeScript + PostgreSQL application for creating and arranging guitar neck diagrams with an Excalidraw-inspired workflow.",
+  "goals": [
+    "Provide a blank canvas on new project creation.",
+    "Allow users to add, move, resize, and scale neck diagrams.",
+    "Support configurable neck options: number of strings, scale length or multiscale angle, number of frets, and capo.",
+    "Enable drawing notes with label modes: key, interval, or picking direction.",
+    "Persist the last opened project so work continues after closing the app.",
+    "Offer searchable navigation through a scale/mode/shape library stored in Postgres."
+  ],
+  "non_goals": [
+    "User authentication or multi-user collaboration.",
+    "Realtime sync between devices.",
+    "Full music theory engine beyond basic interval/key calculations."
+  ],
+  "functional_requirements": {
+    "canvas": [
+      "Blank page on new project.",
+      "Plus button adds a new neck at a suggested tile position.",
+      "Click to select a neck.",
+      "Drag without modifiers moves the neck.",
+      "Alt-drag resizes; Alt+Shift scales proportionally.",
+      "Necks are resizable and repositionable.",
+      "Tiling algorithm suggests placement as more diagrams are added."
+    ],
+    "neck_config": [
+      "Number of strings.",
+      "Scale length or multiscale angle.",
+      "Number of frets.",
+      "Capo fret position."
+    ],
+    "notes": [
+      "Mouse interaction to place/remove notes.",
+      "Label modes: key, interval, picking direction.",
+      "Global key/scale selection to derive interval and note labels."
+    ],
+    "header": [
+      "Editable title input.",
+      "Display current date."
+    ],
+    "library": [
+      "Search bar and dropdown for scales, positions, keys, modes, shapes."
+    ],
+    "persistence": [
+      "Auto-save project to Postgres.",
+      "Cache latest project in localStorage for offline recovery."
+    ]
+  },
+  "data_model": {
+    "project": {
+      "id": "uuid",
+      "title": "string",
+      "data": "json",
+      "lastOpenedAt": "datetime"
+    },
+    "library_items": {
+      "id": "uuid",
+      "type": "scale|mode|shape|position|key",
+      "name": "string",
+      "intervals": "int[] (optional)",
+      "description": "string (optional)"
+    }
+  },
+  "api_endpoints": [
+    "GET /api/projects/last",
+    "POST /api/projects",
+    "PATCH /api/projects/:id",
+    "GET /api/library?query=..."
+  ],
+  "ux_guidelines": [
+    "Excalidraw-inspired top toolbar.",
+    "Canvas first; minimal chrome.",
+    "Neck diagrams have clear selection state and resize feedback."
+  ],
+  "parallel_agent_coordination": {
+    "vcs": "git",
+    "branch_prefix": "codex/",
+    "file_ownership": {
+      "apps/web": "Frontend UI and canvas interactions",
+      "apps/api": "API, persistence, and Prisma",
+      "prisma": "Database schema and seeds",
+      "packages/shared": "Shared types"
+    },
+    "conflict_avoidance": [
+      "Avoid editing the same file concurrently.",
+      "If a change spans multiple areas, coordinate by creating a single owning agent.",
+      "Prefer additive changes; minimize large refactors without agreement."
+    ]
+  }
+}
