@@ -153,7 +153,7 @@ const LandingPage = () => {
   useEffect(() => {
     const timer = window.setInterval(() => {
       setFeatureIndex((prev) => (prev + 1) % FEATURE_SLIDES.length);
-    }, 5000);
+    }, 4800);
     return () => window.clearInterval(timer);
   }, []);
 

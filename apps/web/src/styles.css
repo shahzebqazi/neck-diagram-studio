@@ -1810,9 +1810,9 @@ body {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateY(10px);
   pointer-events: none;
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.6s ease, transform 0.6s ease;
 }
 
 .feature-slide.is-active {
