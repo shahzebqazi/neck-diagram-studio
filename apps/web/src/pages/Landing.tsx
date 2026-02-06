@@ -139,7 +139,6 @@ const LandingPage = () => {
   const primaryTarget = "/app";
   const isActive = (path: string) => pathname === path;
   const [collapsedSections, setCollapsedSections] = useState({
-    hero: false,
     how: false,
     useCases: false,
     faq: false,
@@ -199,73 +198,59 @@ const LandingPage = () => {
       </nav>
 
       <main className="landing-content">
-        <section className={`landing-hero${collapsedSections.hero ? " is-collapsed" : ""}`}>
-          <button
-            className="section-toggle hero-toggle"
-            type="button"
-            onClick={() => toggleSection("hero")}
-            aria-expanded={!collapsedSections.hero}
-          >
-            {collapsedSections.hero ? "Expand" : "Minimize"}
-          </button>
-          {collapsedSections.hero ? (
-            <div className="section-collapsed-note">Overview minimized.</div>
-          ) : (
-            <>
-              <div className="hero-copy">
-                <div className="hero-pill">Version 0.1 Preview</div>
-                <h1>Quick, clear guitar neck diagram builder for practice and teaching.</h1>
-                <p>
-                  Build a clean fretboard diagram in minutes and turn it into a guitar scale chart
-                  or scale map. Label fretboard notes with an interval chart view for lessons and
-                  practice.
-                </p>
-                <div className="hero-cta">
-                  <Link to={primaryTarget} className="cta-button primary">
-                    Start a Project
-                  </Link>
-                  <Link to="/demo" className="cta-button ghost">
-                    Explore the Demo
-                  </Link>
-                </div>
-                <div className="hero-meta">
-                  <span>Auto‑saves while you work</span>
-                  <span>Local recovery copy</span>
-                  <span>Tabs for variations</span>
-                </div>
-              </div>
-              <div className="hero-panel">
-                <div className="hero-panel-header">Core features</div>
-                <div className="feature-carousel" role="region" aria-live="polite">
-                  {FEATURE_SLIDES.map((feature, index) => (
-                    <div
-                      key={feature.title}
-                      className={`feature-slide${index === featureIndex ? " is-active" : ""}`}
-                      aria-hidden={index !== featureIndex}
-                    >
-                      <div className="feature-copy">
-                        <h3>{feature.title}</h3>
-                        <p>{feature.description}</p>
-                      </div>
-                      <div className="feature-media">{feature.art}</div>
-                    </div>
-                  ))}
-                  <div className="feature-dots" role="tablist" aria-label="Feature slides">
-                    {FEATURE_SLIDES.map((feature, index) => (
-                      <button
-                        key={feature.title}
-                        type="button"
-                        className={`feature-dot${index === featureIndex ? " is-active" : ""}`}
-                        onClick={() => setFeatureIndex(index)}
-                        aria-label={`Show ${feature.title}`}
-                        aria-pressed={index === featureIndex}
-                      />
-                    ))}
+        <section className="landing-hero">
+          <div className="hero-copy">
+            <div className="hero-pill">Version 0.1 Preview</div>
+            <h1>Quick, clear guitar neck diagram builder for practice and teaching.</h1>
+            <p>
+              Build a clean fretboard diagram in minutes and turn it into a guitar scale chart or
+              scale map. Label fretboard notes with an interval chart view for lessons and
+              practice.
+            </p>
+            <div className="hero-cta">
+              <Link to={primaryTarget} className="cta-button primary">
+                Start a Project
+              </Link>
+              <Link to="/demo" className="cta-button ghost">
+                Explore the Demo
+              </Link>
+            </div>
+            <div className="hero-meta">
+              <span>Auto‑saves while you work</span>
+              <span>Local recovery copy</span>
+              <span>Tabs for variations</span>
+            </div>
+          </div>
+          <div className="hero-panel">
+            <div className="hero-panel-header">Core features</div>
+            <div className="feature-carousel" role="region" aria-live="polite">
+              {FEATURE_SLIDES.map((feature, index) => (
+                <div
+                  key={feature.title}
+                  className={`feature-slide${index === featureIndex ? " is-active" : ""}`}
+                  aria-hidden={index !== featureIndex}
+                >
+                  <div className="feature-copy">
+                    <h3>{feature.title}</h3>
+                    <p>{feature.description}</p>
                   </div>
+                  <div className="feature-media">{feature.art}</div>
                 </div>
+              ))}
+              <div className="feature-dots" role="tablist" aria-label="Feature slides">
+                {FEATURE_SLIDES.map((feature, index) => (
+                  <button
+                    key={feature.title}
+                    type="button"
+                    className={`feature-dot${index === featureIndex ? " is-active" : ""}`}
+                    onClick={() => setFeatureIndex(index)}
+                    aria-label={`Show ${feature.title}`}
+                    aria-pressed={index === featureIndex}
+                  />
+                ))}
               </div>
-            </>
-          )}
+            </div>
+          </div>
         </section>
 
         <section className={`landing-section${collapsedSections.how ? " is-collapsed" : ""}`}>

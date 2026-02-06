@@ -46,6 +46,10 @@
       "Label modes: key, interval, picking direction.",
       "Global key/scale selection to derive interval and note labels."
     ],
+    "diagram_rendering": [
+      "Fret number labels must never overlap; when spacing is tight, reduce label density or hide labels to preserve readability.",
+      "Implementation guidance: compute the minimum adjacent-fret spacing in pixels, estimate a safe label width (e.g. widest possible label + padding), then render every Nth label where N = ceil(labelWidth / minSpacing); always keep key frets like 12 if desired."
+    ],
     "header": [
       "Editable title input.",
       "Do not display the current date in the header."
@@ -182,7 +186,8 @@
       "Canvas zoom changes do not desync selection handles or page outline bounds.",
       "Tiling suggestions place new diagrams without overlap and within visible canvas.",
       "Clicking empty canvas or pressing Escape clears the selected diagram and does not auto-select another.",
-      "Create Diagram adds a new neck when none is selected; Replace Diagram updates only the selected neck."
+      "Create Diagram adds a new neck when none is selected; Replace Diagram updates only the selected neck.",
+      "Fret number labels never overlap when enabled; labels thin or hide as spacing shrinks."
     ],
     "regression_checks": [
       "Library search results remain stable when switching library type or clearing the query.",

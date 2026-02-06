@@ -19,7 +19,7 @@ export default defineConfig({
       "/api": "http://localhost:3001"
     },
     fs: {
-      allow: [path.resolve(__dirname, "../../")]
+      allow: [path.resolve(__dirname, "../../"), path.resolve(__dirname, "../../..")]
     }
   }
 });
