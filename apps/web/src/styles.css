@@ -1391,8 +1391,6 @@ body {
 
 .neck-diagram svg {
   display: block;
-  position: absolute;
-  inset: 0;
   overflow: visible;
 }
 
@@ -1404,6 +1402,8 @@ body {
 }
 
 .neck-diagram-notes {
+  position: absolute;
+  inset: 0;
   z-index: 1;
 }
 

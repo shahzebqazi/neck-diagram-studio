@@ -344,6 +344,7 @@ const NeckDiagram = ({
         className="neck-diagram-notes"
         width={diagram.width}
         height={diagram.height}
+        overflow="visible"
         data-diagram-id={diagram.id}
         onPointerDown={handleNotePointerDown}
         onPointerMove={handleNotePointerMove}
