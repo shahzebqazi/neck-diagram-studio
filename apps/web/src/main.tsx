@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import DocsPage from "./pages/Docs";
 import DemoPage from "./pages/Demo";
 import LandingPage from "./pages/Landing";
 import { usePathname } from "./lib/router";
@@ -11,6 +12,10 @@ const Router = () => {
 
   if (pathname === "/demo") {
     return <DemoPage />;
+  }
+
+  if (pathname === "/docs") {
+    return <DocsPage />;
   }
 
   if (pathname === "/app") {

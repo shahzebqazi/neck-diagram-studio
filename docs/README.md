@@ -8,3 +8,4 @@ This folder contains the project documentation referenced by the PRD. These docs
 3. `docs/WORKFLOWS.md` — canvas interactions, import/export, persistence
 4. `docs/DEMO.md` — demo mode behavior
 5. `docs/DEPLOYMENT.md` — GitLab Pages + custom domain notes
+6. `docs/USER_GUIDE.md` — user-facing documentation for the studio

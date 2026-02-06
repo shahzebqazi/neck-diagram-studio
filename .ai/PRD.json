@@ -48,7 +48,7 @@
     ],
     "header": [
       "Editable title input.",
-      "Display current date."
+      "Do not display the current date in the header."
     ],
     "library": [
       "Search bar and dropdown for scales, positions, keys, modes, shapes.",
@@ -137,13 +137,12 @@
     "ui_prefs": [
       "Theme defaults to high-contrast unless overridden by neck-diagram:theme.",
       "Sidebar defaults to collapsed unless neck-diagram:sidebar-collapsed is set.",
-      "Show page date defaults to false unless neck-diagram:page-date is true.",
       "Delete warning defaults to true unless neck-diagram:delete-warning is false.",
       "Panels default open: theory, diagram, instrument, settings."
     ],
     "storage_keys": [
       "Project cache: neck-diagram:last-project.",
-      "UI prefs: neck-diagram:sidebar-collapsed, neck-diagram:page-date, neck-diagram:delete-warning, neck-diagram:theme."
+      "UI prefs: neck-diagram:sidebar-collapsed, neck-diagram:delete-warning, neck-diagram:theme."
     ]
   },
   "state_testing": {
@@ -175,7 +174,6 @@
       "Theme toggle persists across refresh and resets to default if storage contains an invalid theme id.",
       "Sidebar collapsed state persists across refresh.",
       "Delete warning toggle persists across refresh.",
-      "Show page date toggle persists across refresh.",
       "Local project cache updates on save and is restored on cold start."
     ],
     "interaction_tests": [
@@ -230,10 +228,11 @@
   "devops": [],
   "hosting": [
     "Use the custom domain neckdiagramstudio.com.",
-    "Host the site via GitHub Pages."
+    "Host the site via GitLab Pages."
   ],
   "git_ops": [
-    "Maintain the demo page on a dedicated GitLab branch (separate from main)."
+    "Maintain the demo page on a dedicated GitLab branch (separate from main).",
+    "Mirror the GitLab repository to GitHub."
   ],
   "parallel_agent_coordination": {
     "vcs": "git",

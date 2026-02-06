@@ -4,8 +4,9 @@ import { Link, usePathname } from "../lib/router";
 const LINK_ITEMS = [
   {
     title: "Documentation",
-    description: "Shortcuts, exports, and layout tips for fast diagramming.",
-    href: "https://neckdiagramstudio.com/docs"
+    description: "Shortcuts, exports, and layout tips for clean, readable diagrams.",
+    href: "/docs",
+    internal: true
   },
   {
     title: "Code Repository",
@@ -14,7 +15,7 @@ const LINK_ITEMS = [
   },
   {
     title: "Creator Website",
-    description: "Follow the studio behind the diagrams.",
+    description: "Learn about the studio behind Neck Diagram Studio.",
     href: "https://iconoclastaud.io/"
   }
 ];
@@ -22,7 +23,7 @@ const LINK_ITEMS = [
 const FEATURE_SLIDES = [
   {
     title: "Blank canvas layout",
-    description: "Start from a clean canvas and place neck diagrams exactly where you want.",
+    description: "Start from a blank canvas to build any guitar neck diagram with the spacing you need.",
     art: (
       <svg viewBox="0 0 320 180" role="img" aria-label="Blank canvas preview">
         <rect x="0" y="0" width="320" height="180" rx="18" fill="var(--panel-strong)" />
@@ -38,7 +39,7 @@ const FEATURE_SLIDES = [
   },
   {
     title: "Key + scale labeling",
-    description: "Show note names, intervals, or picking direction with one click.",
+    description: "Add root, scale, and position labels to create a clear interval chart for any key.",
     art: (
       <svg viewBox="0 0 320 180" role="img" aria-label="Neck diagram with labels">
         <rect x="0" y="0" width="320" height="180" rx="18" fill="var(--panel-strong)" />
@@ -73,7 +74,7 @@ const FEATURE_SLIDES = [
   },
   {
     title: "Export-ready layouts",
-    description: "Export PNG, PDF, or JSON pages that match the on‑screen layout.",
+    description: "Create a printable fretboard for a guitar practice chart or guitar lesson handout.",
     art: (
       <svg viewBox="0 0 320 180" role="img" aria-label="Export layout preview">
         <rect x="0" y="0" width="320" height="180" rx="18" fill="var(--panel-strong)" />
@@ -91,45 +92,45 @@ const FEATURE_SLIDES = [
 const STEP_ITEMS = [
   {
     title: "Start a project",
-    description: "Open a blank canvas and add a neck diagram to begin."
+    description: "Open a blank canvas and add your first neck diagram."
   },
   {
-    title: "Arrange and label",
-    description: "Move, resize, and label notes by key, interval, or picking."
+    title: "Label and arrange",
+    description: "Label keys, scales, and positions, then arrange diagrams for the lesson."
   },
   {
     title: "Export and share",
-    description: "Save layouts as PNG, PDF, or JSON for reuse and backup."
+    description: "Export a diagram or full page for practice or class."
   }
 ];
 
 const USE_CASES = [
   {
-    title: "Scale practice charts",
-    description: "Build scale maps across positions without redrawing."
+    title: "Practice charts",
+    description: "Build a scale map or guitar scale chart for focused routines."
   },
   {
-    title: "Lesson handouts",
-    description: "Create clean, printable fretboard diagrams for lessons."
+    title: "Teaching handouts",
+    description: "Make a clean guitar lesson handout with fretboard notes students can read."
   },
   {
     title: "Song mapping",
-    description: "Track interval targets and note choices per diagram."
+    description: "Map positions and interval targets across the neck."
   }
 ];
 
 const FAQ_ITEMS = [
   {
-    title: "Does the demo save my work?",
-    description: "No. Demo edits reset on refresh so you can explore safely."
+    title: "Why does the demo reset?",
+    description: "The demo is temporary and clears on refresh, so you can explore without saving."
   },
   {
-    title: "What export formats are supported?",
-    description: "PNG, PDF, and JSON for full-page or single-diagram exports."
+    title: "Which export formats are supported?",
+    description: "PNG, PDF, and JSON exports are available for diagrams and full pages."
   },
   {
     title: "Is there offline recovery?",
-    description: "Yes. The latest project is cached locally for offline recovery."
+    description: "If the app can't reach the server, it will try to load the last project saved in your browser."
   }
 ];
 
@@ -182,14 +183,13 @@ const LandingPage = () => {
           >
             Demo
           </Link>
-          <a
-            className="landing-link"
-            href="https://neckdiagramstudio.com/docs"
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            to="/docs"
+            className={`landing-link${isActive("/docs") ? " is-active" : ""}`}
+            aria-current={isActive("/docs") ? "page" : undefined}
           >
             Docs
-          </a>
+          </Link>
         </div>
         <div className="landing-nav-cta">
           <Link to={primaryTarget} className="cta-button primary">
@@ -214,12 +214,11 @@ const LandingPage = () => {
             <>
               <div className="hero-copy">
                 <div className="hero-pill">Version 0.1 Preview</div>
-                <h1>Guitar neck diagrams for practice, lessons, and layout.</h1>
+                <h1>Quick, clear guitar neck diagram builder for practice and teaching.</h1>
                 <p>
-                  Neck Diagram Studio is a browser‑based neck diagram builder for guitar neck
-                  diagram and fretboard diagram layouts. Build a guitar scale chart or scale map,
-                  label fretboard notes with an interval chart view, and export a printable
-                  fretboard for a guitar practice chart or guitar lesson handout.
+                  Build a clean fretboard diagram in minutes and turn it into a guitar scale chart
+                  or scale map. Label fretboard notes with an interval chart view for lessons and
+                  practice.
                 </p>
                 <div className="hero-cta">
                   <Link to={primaryTarget} className="cta-button primary">
@@ -230,8 +229,8 @@ const LandingPage = () => {
                   </Link>
                 </div>
                 <div className="hero-meta">
-                  <span>Auto‑save with Postgres</span>
-                  <span>Offline recovery cache</span>
+                  <span>Auto‑saves while you work</span>
+                  <span>Local recovery copy</span>
                   <span>Tabs for variations</span>
                 </div>
               </div>
@@ -273,7 +272,7 @@ const LandingPage = () => {
           <div className="section-header">
             <div className="section-text">
               <h2>How it works</h2>
-              <p>A simple workflow for clean, printable diagrams.</p>
+              <p>A simple workflow for clear, reusable diagrams.</p>
             </div>
             <button
               className="section-toggle"
@@ -302,7 +301,7 @@ const LandingPage = () => {
           <div className="section-header">
             <div className="section-text">
               <h2>Common use cases</h2>
-              <p>Designed for practice, teaching, and layout planning.</p>
+              <p>Built for practice, teaching, and song planning.</p>
             </div>
             <button
               className="section-toggle"
@@ -360,7 +359,7 @@ const LandingPage = () => {
           <div className="section-header">
             <div className="section-text">
               <h2>Key Links</h2>
-              <p>Documentation, source, and creator links.</p>
+              <p>Quick links to documentation, the public repo, and the studio behind Neck Diagram Studio.</p>
             </div>
             <button
               className="section-toggle"
@@ -374,19 +373,27 @@ const LandingPage = () => {
           {!collapsedSections.links ? (
             <div className="section-body">
               <div className="link-grid">
-                {LINK_ITEMS.map((item) => (
-                  <a
-                    key={item.title}
-                    className="link-card"
-                    href={item.href}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <div className="link-title">{item.title}</div>
-                    <div className="link-description">{item.description}</div>
-                    <div className="link-arrow">View</div>
-                  </a>
-                ))}
+                {LINK_ITEMS.map((item) =>
+                  item.internal ? (
+                    <Link key={item.title} className="link-card" to={item.href}>
+                      <div className="link-title">{item.title}</div>
+                      <div className="link-description">{item.description}</div>
+                      <div className="link-arrow">View</div>
+                    </Link>
+                  ) : (
+                    <a
+                      key={item.title}
+                      className="link-card"
+                      href={item.href}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <div className="link-title">{item.title}</div>
+                      <div className="link-description">{item.description}</div>
+                      <div className="link-arrow">View</div>
+                    </a>
+                  )
+                )}
               </div>
             </div>
           ) : null}
