@@ -1,7 +1,7 @@
 {
   "project": "Neck Diagram Studio",
   "version": "0.1.0",
-  "date": "2026-02-04",
+  "date": "2026-02-06",
   "summary": "A TypeScript + PostgreSQL application for creating and arranging guitar neck diagrams with an Excalidraw-inspired workflow.",
   "goals": [
     "Provide a blank canvas on new project creation.",
@@ -9,10 +9,12 @@
     "Support configurable neck options: number of strings, scale length or multiscale angle, number of frets, and capo.",
     "Enable drawing notes with label modes: key, interval, or picking direction.",
     "Persist the last opened project so work continues after closing the app.",
-    "Offer searchable navigation through a scale/mode/shape library stored in Postgres."
+    "Offer searchable navigation through a scale/mode/shape library stored in Postgres.",
+    "Offer a demo page that showcases the product without requiring login.",
+    "Provide a landing page with a brief project description and key links."
   ],
   "non_goals": [
-    "User authentication or multi-user collaboration.",
+    "Multi-user collaboration.",
     "Realtime sync between devices.",
     "Full music theory engine beyond basic interval/key calculations."
   ],
@@ -21,10 +23,14 @@
       "Blank page on new project.",
       "Plus button adds a new neck at a suggested tile position.",
       "Click to select a neck.",
+      "Click empty canvas or press Escape to clear selection (no diagram selected).",
       "Drag without modifiers moves the neck.",
       "Alt-drag resizes; Alt+Shift scales proportionally.",
       "Necks are resizable and repositionable.",
-      "Tiling algorithm suggests placement as more diagrams are added."
+      "Tiling algorithm suggests placement as more diagrams are added.",
+      "When the sidebar is collapsed, show a page outline centered in the visible canvas.",
+      "Page outline and header stay aligned with each other and the page bounds.",
+      "Page outline bounds account for diagram captions so exports match on-screen layout."
     ],
     "neck_config": [
       "Number of strings.",
@@ -42,11 +48,122 @@
       "Display current date."
     ],
     "library": [
-      "Search bar and dropdown for scales, positions, keys, modes, shapes."
+      "Search bar and dropdown for scales, positions, keys, modes, shapes.",
+      "Create Diagram uses the current key/scale/position selections and adds a new neck when nothing is selected.",
+      "Replace Diagram updates only the currently selected neck and preserves its on-canvas position and size."
     ],
     "persistence": [
       "Auto-save project to Postgres.",
       "Cache latest project in localStorage for offline recovery."
+    ],
+    "demo": [
+      "Provide a public demo page accessible without login.",
+      "Demo page uses a read-only sample project with preloaded diagrams.",
+      "Show a clear call-to-action to open the full studio from the demo page."
+    ],
+    "landing": [
+      "Provide a public landing page accessible without login.",
+      "Include a brief description of the project.",
+      "Include links to the docs, code repository, the creator's website, the creator's links page, and donations.",
+      "Navigation should remain legible on mobile without awkward wrapping (use a compact menu or stacked layout).",
+      "Hero copy and CTAs should keep balanced vertical spacing on small screens.",
+      "Key links grid should scale to wide screens without excessive empty space.",
+      "Show a clear active state in the top navigation."
+    ]
+  },
+  "security_requirements": {
+    "api": [
+      "Allowlist CORS origins explicitly; never use wildcard origins with credentials.",
+      "Define request body limits and validate untrusted inputs at route boundaries."
+    ],
+    "headers": [
+      "Set security headers on API and SPA responses: Content-Security-Policy, X-Content-Type-Options, Referrer-Policy, and clickjacking protection (frame-ancestors or X-Frame-Options).",
+      "Disable Express x-powered-by and use custom 404 and error handlers that do not leak stack traces in production."
+    ],
+    "abuse_protection": [
+      "Add rate limiting for state-changing endpoints or enforce limits at the edge."
+    ],
+    "secrets": [
+      "Store secrets in environment variables or a secrets manager; do not commit secrets to the repo."
+    ],
+    "data": [
+      "Do not expose database ports publicly in production; restrict access to private networks."
+    ]
+  },
+  "initial_state": {
+    "boot": [
+      "Status starts as loading with project = null and isRemote = true.",
+      "Canvas defaults to width 1200, height 800, zoom 1.",
+      "Default label mode is key with no library query and library type set to all."
+    ],
+    "first_time_ready": [
+      "If a remote last project exists, load it, set the title input to the project title, cache it locally, and mark isRemote true.",
+      "If no remote project exists, create a blank project titled \"Untitled Neck Diagram\", persist remotely, cache locally, and mark isRemote true.",
+      "If remote access fails, attempt to load the local cache from neck-diagram:last-project; if valid, use it and mark isRemote false.",
+      "If remote access fails and no valid local cache exists, create a local-only project with id local-<uuid> and mark isRemote false."
+    ],
+    "blank_project_data": [
+      "Diagrams array is empty.",
+      "Tabs array contains a single tab named \"Tab 1\" with activeTabId pointing to it.",
+      "createdAt and updatedAt are initialized to the current timestamp."
+    ],
+    "diagram_defaults": [
+      "New diagram defaults: name \"Neck\", x=60, y=80, width=520, height=160, rotation=0, layoutMode=\"grid\".",
+      "Default neck config: strings=8, frets=12, scaleLength=25.5, capo=0, tuning=[F#, B, E, A, D, G, B, E].",
+      "Default neck config continued: displayStandardTuning=false, fretNumberStyle=\"arabic\", showFretNumbers=false, highlightRoot=true, snapToGrid=false, showInlays=true.",
+      "Default diagram label mode is key and notes start empty."
+    ],
+    "ui_prefs": [
+      "Theme defaults to jaffa-cake unless overridden by neck-diagram:theme.",
+      "Sidebar defaults to collapsed unless neck-diagram:sidebar-collapsed is set.",
+      "Show page date defaults to false unless neck-diagram:page-date is true.",
+      "Delete warning defaults to true unless neck-diagram:delete-warning is false.",
+      "Panels default open: theory, diagram, instrument, settings."
+    ],
+    "storage_keys": [
+      "Project cache: neck-diagram:last-project.",
+      "UI prefs: neck-diagram:sidebar-collapsed, neck-diagram:page-date, neck-diagram:delete-warning, neck-diagram:theme."
+    ]
+  },
+  "state_testing": {
+    "coverage": [
+      "Boot states: loading, ready, and error transitions.",
+      "Remote vs local project sourcing and offline recovery.",
+      "UI preference persistence across refresh and hard reload.",
+      "Canvas interactions: selection, drag, resize, scale, zoom, and outline alignment.",
+      "Tab and diagram state integrity across add, delete, rename, and reorder."
+    ],
+    "bug_test_matrix": [
+      "Remote success path loads last project, sets title input, caches locally, and status becomes ready.",
+      "Remote empty path creates a blank project, saves remotely, caches locally, and status becomes ready.",
+      "Remote error path loads local cache when valid; if invalid, creates a local project and status becomes ready.",
+      "Local cache with malformed JSON falls back to a new local project without throwing.",
+      "Local cache with missing tabs or activeTabId is migrated to a valid tab and active selection.",
+      "Selected diagram id referencing a missing diagram clears selection gracefully.",
+      "Active tab id referencing a missing tab falls back to the first available tab.",
+      "Export operations succeed with zero diagrams and with large diagrams.",
+      "Import invalid JSON does not mutate state and surfaces a clear error.",
+      "Import page JSON merges tabs/diagrams without duplicating ids or breaking selection."
+    ],
+    "persistence_tests": [
+      "Theme toggle persists across refresh and resets to default if storage contains an invalid theme id.",
+      "Sidebar collapsed state persists across refresh.",
+      "Delete warning toggle persists across refresh.",
+      "Show page date toggle persists across refresh.",
+      "Local project cache updates on save and is restored on cold start."
+    ],
+    "interaction_tests": [
+      "Drag and resize state resets on mouseup and on pointer leave without leaving a stuck drag state.",
+      "Alt-drag resizes, Alt+Shift preserves aspect ratio, and sizes clamp to min/max.",
+      "Canvas zoom changes do not desync selection handles or page outline bounds.",
+      "Tiling suggestions place new diagrams without overlap and within visible canvas.",
+      "Clicking empty canvas or pressing Escape clears the selected diagram and does not auto-select another.",
+      "Create Diagram adds a new neck when none is selected; Replace Diagram updates only the selected neck."
+    ],
+    "regression_checks": [
+      "Library search results remain stable when switching library type or clearing the query.",
+      "Diagram note placement uses normalized tuning and consistent label mode.",
+      "Project auto-save does not overwrite local edits when offline."
     ]
   },
   "data_model": {
@@ -73,7 +190,24 @@
   "ux_guidelines": [
     "Excalidraw-inspired top toolbar.",
     "Canvas first; minimal chrome.",
-    "Neck diagrams have clear selection state and resize feedback."
+    "Neck diagrams have clear selection state and resize feedback.",
+    "Collapsed sidebar view keeps page outline centered with consistent padding.",
+    "Demo page should feel fully interactive but clearly marked as demo mode.",
+    "Landing page should be concise, clear, and link-focused.",
+    "Responsive layout should avoid awkward nav wrapping and preserve visual balance across breakpoints."
+  ],
+  "frontend": [
+    "Normalize tuning input (case + sharps/flats) before storing so note parsing and labels remain consistent."
+  ],
+  "backend_api": [],
+  "database": [],
+  "devops": [],
+  "hosting": [
+    "Use the custom domain neckdiagramstudio.com.",
+    "Host the site via GitLab Pages."
+  ],
+  "git_ops": [
+    "Maintain the demo page on a dedicated GitLab branch (separate from main)."
   ],
   "parallel_agent_coordination": {
     "vcs": "git",

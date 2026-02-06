@@ -1,4 +1,4 @@
-import type { NeckConfig, NeckDiagram, ProjectData } from "@shared/types";
+import type { NeckConfig, NeckDiagram, Note, ProjectData } from "@shared/types";
 
 export const DEFAULT_TUNING_6 = ["E", "A", "D", "G", "B", "E"];
 export const DEFAULT_TUNING_7 = ["B", "E", "A", "D", "G", "B", "E"];
@@ -63,3 +63,122 @@ export const createNeckDiagram = (partial?: Partial<NeckDiagram>): NeckDiagram =
   labelMode: "key",
   ...partial
 });
+
+const createNotes = (notes: Array<Omit<Note, "id">>): Note[] =>
+  notes.map((note) => ({
+    id: crypto.randomUUID(),
+    ...note
+  }));
+
+export const createDemoProject = (): ProjectData => {
+  const tabId = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  const diagrams: NeckDiagram[] = [
+    createNeckDiagram({
+      tabId,
+      name: "E Minor Pentatonic",
+      x: 120,
+      y: 120,
+      width: 520,
+      height: 160,
+      labelMode: "interval",
+      config: {
+        ...DEFAULT_NECK_CONFIG,
+        strings: 6,
+        frets: 15,
+        tuning: DEFAULT_TUNING_6,
+        showFretNumbers: true
+      },
+      notes: createNotes([
+        { stringIndex: 0, fret: 3 },
+        { stringIndex: 0, fret: 5 },
+        { stringIndex: 1, fret: 3 },
+        { stringIndex: 1, fret: 5 },
+        { stringIndex: 2, fret: 2 },
+        { stringIndex: 2, fret: 5 },
+        { stringIndex: 3, fret: 2 },
+        { stringIndex: 3, fret: 4 },
+        { stringIndex: 4, fret: 3 },
+        { stringIndex: 4, fret: 5 },
+        { stringIndex: 5, fret: 3 },
+        { stringIndex: 5, fret: 5 }
+      ])
+    }),
+    createNeckDiagram({
+      tabId,
+      name: "Dorian Flow",
+      x: 680,
+      y: 120,
+      width: 520,
+      height: 160,
+      labelMode: "key",
+      config: {
+        ...DEFAULT_NECK_CONFIG,
+        strings: 7,
+        frets: 17,
+        scaleLength: 26.5,
+        tuning: DEFAULT_TUNING_7,
+        displayStandardTuning: true,
+        showFretNumbers: true,
+        fretNumberStyle: "roman"
+      },
+      notes: createNotes([
+        { stringIndex: 0, fret: -1 },
+        { stringIndex: 1, fret: -1 },
+        { stringIndex: 2, fret: 2 },
+        { stringIndex: 2, fret: 4 },
+        { stringIndex: 3, fret: 2 },
+        { stringIndex: 3, fret: 5 },
+        { stringIndex: 4, fret: 2 },
+        { stringIndex: 4, fret: 4 },
+        { stringIndex: 5, fret: 3 },
+        { stringIndex: 5, fret: 5 },
+        { stringIndex: 6, fret: 3 },
+        { stringIndex: 6, fret: 6 }
+      ])
+    }),
+    createNeckDiagram({
+      tabId,
+      name: "Picking Drill",
+      x: 120,
+      y: 360,
+      width: 720,
+      height: 190,
+      labelMode: "picking",
+      config: {
+        ...DEFAULT_NECK_CONFIG,
+        strings: 8,
+        frets: 12,
+        scaleLength: 27,
+        tuning: DEFAULT_TUNING_8,
+        highlightRoot: false
+      },
+      notes: createNotes([
+        { stringIndex: 0, fret: 0, picking: "D" },
+        { stringIndex: 0, fret: 2, picking: "U" },
+        { stringIndex: 1, fret: 0, picking: "D" },
+        { stringIndex: 1, fret: 3, picking: "U" },
+        { stringIndex: 2, fret: 2, picking: "D" },
+        { stringIndex: 2, fret: 4, picking: "U" },
+        { stringIndex: 3, fret: 2, picking: "D" },
+        { stringIndex: 3, fret: 5, picking: "U" },
+        { stringIndex: 4, fret: 3, picking: "D" },
+        { stringIndex: 4, fret: 5, picking: "U" },
+        { stringIndex: 5, fret: 3, picking: "D" },
+        { stringIndex: 5, fret: 6, picking: "U" }
+      ])
+    })
+  ];
+
+  return {
+    diagrams,
+    tabs: [{ id: tabId, name: "Demo" }],
+    activeTabId: tabId,
+    keyId: "default:key:e",
+    scaleId: "default:scale:minor-pentatonic",
+    positionId: "default:position:position-1",
+    createdAt: now,
+    updatedAt: now
+  };
+};

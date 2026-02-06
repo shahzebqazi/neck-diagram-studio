@@ -13,7 +13,19 @@ import {
 import { getStandardTuning } from "../state/defaults";
 
 const MIN_NOTE_RADIUS = 8;
-const ROOT_NOTE_COLOR = "#e54b4b";
+const ROOT_NOTE_COLOR = "var(--note-root)";
+const NOTE_IN_SCALE_COLOR = "var(--note-in-scale)";
+const NOTE_OUT_SCALE_COLOR = "var(--note-out-scale)";
+const NOTE_LABEL_COLOR = "var(--note-label)";
+const NOTE_STROKE_COLOR = "var(--note-stroke)";
+const DIAGRAM_BG = "var(--diagram-bg)";
+const DIAGRAM_BORDER = "var(--diagram-border)";
+const DIAGRAM_STRING = "var(--diagram-string)";
+const DIAGRAM_FRET = "var(--diagram-fret)";
+const DIAGRAM_NUT = "var(--diagram-nut)";
+const DIAGRAM_CAPO = "var(--diagram-capo)";
+const DIAGRAM_INLAY = "var(--diagram-inlay)";
+const DIAGRAM_SELECTION = "var(--diagram-selection)";
 const INLAY_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
 const DOUBLE_INLAY_FRETS = new Set([12, 24]);
 const toRoman = (value: number) => {
@@ -188,8 +200,8 @@ const NeckDiagram = ({
           y={0}
           width={diagram.width}
           height={diagram.height}
-          fill="#0f1318"
-          stroke="#1d2732"
+          fill={DIAGRAM_BG}
+          stroke={DIAGRAM_BORDER}
           strokeWidth={1}
         />
         {selected ? (
@@ -199,7 +211,7 @@ const NeckDiagram = ({
             width={Math.max(0, diagram.width - 2)}
             height={Math.max(0, diagram.height - 2)}
             fill="none"
-            stroke="#ffb347"
+            stroke={DIAGRAM_SELECTION}
             strokeWidth={2}
           />
         ) : null}
@@ -211,7 +223,7 @@ const NeckDiagram = ({
             y1={y}
             x2={diagram.width}
             y2={y}
-            stroke="#2b3947"
+            stroke={DIAGRAM_STRING}
             strokeWidth={index === 0 || index === config.strings - 1 ? 2 : 1}
           />
         ))}
@@ -227,7 +239,7 @@ const NeckDiagram = ({
               y1={0}
               x2={xBottom}
               y2={diagram.height}
-              stroke={isNut ? "#f7f1d9" : "#2b3947"}
+              stroke={isNut ? DIAGRAM_NUT : DIAGRAM_FRET}
               strokeWidth={isNut ? 3 : 1}
             />
           );
@@ -239,7 +251,7 @@ const NeckDiagram = ({
             y1={0}
             x2={fretPositions[config.capo] + angleOffset}
             y2={diagram.height}
-            stroke="#f4a259"
+            stroke={DIAGRAM_CAPO}
             strokeWidth={6}
             strokeLinecap="round"
             opacity={0.8}
@@ -253,7 +265,7 @@ const NeckDiagram = ({
               const end = fretPositions[fretNumber];
               if (start == null || end == null) return null;
               const inlayX = start + (end - start) / 2;
-              const fill = "#2a3742";
+              const fill = DIAGRAM_INLAY;
               if (DOUBLE_INLAY_FRETS.has(fretNumber)) {
                 return (
                   <g key={`inlay-${fretNumber}`}>
@@ -298,7 +310,11 @@ const NeckDiagram = ({
           const isRoot = highlightRoot && rootIndex !== null && noteIndex === rootIndex;
           const labelMode = note.labelMode ?? diagram.labelMode;
           const label = resolveLabel(labelMode, noteIndex, rootIndex, note.picking);
-          const fill = isRoot ? ROOT_NOTE_COLOR : inScale ? "#ffb347" : "#3b4b5c";
+          const fill = isRoot
+            ? ROOT_NOTE_COLOR
+            : inScale
+              ? NOTE_IN_SCALE_COLOR
+              : NOTE_OUT_SCALE_COLOR;
           const labelScale = label.length > 2 ? 0.8 : label.length > 1 ? 0.9 : 1;
           const fontSize = Math.max(8, noteFontBase * labelScale);
 
@@ -309,7 +325,7 @@ const NeckDiagram = ({
                 cy={y}
                 r={noteRadius}
                 fill={fill}
-                stroke="#11171f"
+                stroke={NOTE_STROKE_COLOR}
                 strokeWidth={2}
               />
               <text
@@ -318,7 +334,7 @@ const NeckDiagram = ({
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fontSize={fontSize}
-                fill="#10151b"
+                fill={NOTE_LABEL_COLOR}
                 fontFamily="'JetBrainsMono Nerd Font', 'FiraCode Nerd Font', 'Hack Nerd Font', 'NerdFontsSymbols Nerd Font', monospace"
               >
                 {label}

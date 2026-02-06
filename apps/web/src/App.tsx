@@ -12,6 +12,7 @@ import type {
 import NeckDiagramView from "./components/NeckDiagram";
 import {
   createBlankProject,
+  createDemoProject,
   createNeckDiagram,
   DEFAULT_NECK_CONFIG,
   DEFAULT_DIAGRAM_SIZE,
@@ -32,6 +33,7 @@ const MAX_HEIGHT = 400;
 const EXPORT_SCALE = 2;
 const EXPORT_CAPTION_HEIGHT = 28;
 const DEFAULT_PROJECT_TITLE = "Untitled Neck Diagram";
+const DEMO_PROJECT_TITLE = "Demo Session";
 const GRID_SIZE = 32;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
@@ -44,6 +46,43 @@ const MAX_SIDEBAR_WIDTH = 480;
 const SIDEBAR_STATE_STORAGE_KEY = "neck-diagram:sidebar-collapsed";
 const PAGE_DATE_STORAGE_KEY = "neck-diagram:page-date";
 const DELETE_WARNING_STORAGE_KEY = "neck-diagram:delete-warning";
+const THEME_STORAGE_KEY = "neck-diagram:theme";
+const THEMES = [
+  {
+    id: "jaffa-cake",
+    label: "Jaffa Cake",
+    preview: "linear-gradient(135deg, #0b1015 0%, #111821 50%, #ffb347 100%)"
+  },
+  {
+    id: "light",
+    label: "Light",
+    preview: "linear-gradient(135deg, #f8f5f1 0%, #ffffff 55%, #f28c28 100%)"
+  },
+  {
+    id: "catputtchin",
+    label: "Catputtchin",
+    preview: "linear-gradient(135deg, #1b1410 0%, #2a1f1a 55%, #e7b77d 100%)"
+  },
+  {
+    id: "high-contrast",
+    label: "High Contrast",
+    preview: "linear-gradient(135deg, #000000 0%, #ffffff 55%, #ffd400 100%)"
+  },
+  {
+    id: "fifties",
+    label: "50's",
+    preview: "linear-gradient(135deg, #e0f2ea 0%, #cfe8f6 45%, #f6d66a 100%)"
+  },
+  {
+    id: "oled-blackout",
+    label: "OLED Blackout",
+    preview: "linear-gradient(135deg, #000000 0%, #050505 50%, #ff8c2a 100%)"
+  }
+] as const;
+type ThemeId = (typeof THEMES)[number]["id"];
+const DEFAULT_THEME: ThemeId = "jaffa-cake";
+const isThemeId = (value: string): value is ThemeId =>
+  THEMES.some((theme) => theme.id === value);
 const POSITION_PRESETS: Record<
   string,
   { minFret: number; maxFret: number; minFrets?: number }
@@ -92,8 +131,22 @@ type DragState = {
   origin: { x: number; y: number; width: number; height: number };
 };
 
+const normalizeNoteName = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const letter = trimmed[0]?.toUpperCase();
+  if (!letter || !["A", "B", "C", "D", "E", "F", "G"].includes(letter)) {
+    return trimmed.toUpperCase();
+  }
+  const accidental = trimmed[1];
+  if (accidental === "#") return `${letter}#`;
+  if (accidental === "b" || accidental === "B") return `${letter}b`;
+  return letter;
+};
+
 const normalizeTuning = (strings: number, tuning: string[]) => {
-  let normalized = tuning.length > 0 ? [...tuning] : [];
+  let normalized =
+    tuning.length > 0 ? tuning.map(normalizeNoteName).filter((note) => note.length > 0) : [];
   if (normalized.length === 0) {
     normalized = getStandardTuning(strings);
   }
@@ -128,6 +181,11 @@ const slugify = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+const getDiagramExportHeight = (diagram: NeckDiagram) => {
+  const hasCaption = diagram.name?.trim().length > 0;
+  return diagram.height + (hasCaption ? EXPORT_CAPTION_HEIGHT : 0);
+};
+
 const svgToImage = (svg: SVGSVGElement, caption?: string) => {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
@@ -148,7 +206,8 @@ const svgToImage = (svg: SVGSVGElement, caption?: string) => {
       "'JetBrainsMono Nerd Font', 'FiraCode Nerd Font', 'Hack Nerd Font', 'NerdFontsSymbols Nerd Font', monospace"
     );
     text.setAttribute("font-size", "14");
-    text.setAttribute("fill", "#9aa7b2");
+    const muted = getCssVar("--muted", "#9aa7b2");
+    text.setAttribute("fill", muted);
     text.textContent = caption;
     clone.appendChild(text);
   }
@@ -168,6 +227,12 @@ const svgToImage = (svg: SVGSVGElement, caption?: string) => {
   });
 };
 
+const getCssVar = (name: string, fallback: string) => {
+  if (typeof window === "undefined") return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name);
+  return value?.trim() || fallback;
+};
+
 const normalizeNotes = (notes: Note[]) => {
   const deduped = new Map<string, Note>();
   notes.forEach((note) => {
@@ -183,6 +248,19 @@ const getDisplayTitle = (record: ProjectRecord | null) => {
     return "";
   }
   return title;
+};
+
+const isAutoTabName = (name?: string) => {
+  if (!name) return true;
+  return /^Tab\s+\d+$/i.test(name.trim());
+};
+
+const getTabDisplayName = (tab: ProjectTab, index: number) => {
+  const trimmed = tab.name?.trim() ?? "";
+  if (isAutoTabName(trimmed)) {
+    return `Tab ${index + 1}`;
+  }
+  return trimmed || `Tab ${index + 1}`;
 };
 
 const createDefaultTab = (name = "Tab 1"): ProjectTab => ({
@@ -253,7 +331,11 @@ const isEditableTarget = (target: EventTarget | null) => {
   return tag === "input" || tag === "textarea" || tag === "select";
 };
 
-const App = () => {
+type AppMode = "studio" | "demo";
+type AppProps = { mode?: AppMode };
+
+const App = ({ mode = "studio" }: AppProps) => {
+  const isDemo = mode === "demo";
   const [project, setProject] = useState<ProjectRecord | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [isRemote, setIsRemote] = useState(true);
@@ -290,6 +372,11 @@ const App = () => {
   const [renamingDiagramId, setRenamingDiagramId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [showPageDate, setShowPageDate] = useState(false);
+  const [theme, setTheme] = useState<ThemeId>(() => {
+    if (typeof window === "undefined") return DEFAULT_THEME;
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    return stored && isThemeId(stored) ? stored : DEFAULT_THEME;
+  });
   const [panelOpen, setPanelOpen] = useState({
     theory: true,
     diagram: true,
@@ -314,8 +401,10 @@ const App = () => {
 
   const tabs = (project?.data.tabs ?? []).filter((tab) => tab?.id);
   const activeTabId = project?.data.activeTabId ?? tabs[0]?.id ?? null;
-  const activeTabName = tabs.find((tab) => tab.id === activeTabId)?.name ?? "";
-  const hasCustomTabTitle = activeTabName.length > 0 && !/^Tab\\s+\\d+$/i.test(activeTabName);
+  const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTabId);
+  const activeTab = activeTabIndex >= 0 ? tabs[activeTabIndex] : null;
+  const activeTabName = activeTab ? getTabDisplayName(activeTab, activeTabIndex) : "";
+  const hasCustomTabTitle = activeTab ? !isAutoTabName(activeTab.name) : false;
   const diagramsInActiveTab = useMemo(() => {
     if (!project || !activeTabId) return [];
     return project.data.diagrams.filter((diagram) => diagram.tabId === activeTabId);
@@ -353,7 +442,9 @@ const App = () => {
     const minX = Math.min(...diagramsInActiveTab.map((diagram) => diagram.x));
     const maxX = Math.max(...diagramsInActiveTab.map((diagram) => diagram.x + diagram.width));
     const minY = Math.min(...diagramsInActiveTab.map((diagram) => diagram.y));
-    const maxY = Math.max(...diagramsInActiveTab.map((diagram) => diagram.y + diagram.height));
+    const maxY = Math.max(
+      ...diagramsInActiveTab.map((diagram) => diagram.y + getDiagramExportHeight(diagram))
+    );
     const contentWidth = Math.max(1, maxX - minX + OUTLINE_PADDING * 2);
     const contentHeight = Math.max(1, maxY - minY + OUTLINE_PADDING * 2);
     const scale = Math.max(
@@ -378,6 +469,26 @@ const App = () => {
 
   useEffect(() => {
     let mounted = true;
+
+    if (isDemo) {
+      const demo = createDemoProject();
+      const now = new Date().toISOString();
+      const record: ProjectRecord = {
+        id: `demo-${crypto.randomUUID()}`,
+        title: DEMO_PROJECT_TITLE,
+        data: demo,
+        createdAt: now,
+        updatedAt: now,
+        lastOpenedAt: now
+      };
+      setProject(record);
+      setIsRemote(false);
+      setStatus("ready");
+      setTitleInput(getDisplayTitle(record));
+      return () => {
+        mounted = false;
+      };
+    }
 
     const load = async () => {
       try {
@@ -429,7 +540,7 @@ const App = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isDemo]);
 
   useEffect(() => {
     const stored = localStorage.getItem(DELETE_WARNING_STORAGE_KEY);
@@ -454,6 +565,12 @@ const App = () => {
   useEffect(() => {
     localStorage.setItem(PAGE_DATE_STORAGE_KEY, String(showPageDate));
   }, [showPageDate]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_STATE_STORAGE_KEY, String(sidebarCollapsed));
@@ -679,6 +796,7 @@ const App = () => {
 
   useDebouncedEffect(() => {
     if (!project) return;
+    if (isDemo) return;
     saveLocalProject(project);
     if (!isRemote) return;
     updateProject(project.id, {
@@ -688,7 +806,7 @@ const App = () => {
     }).catch(() => {
       setIsRemote(false);
     });
-  }, [project, isRemote], 800);
+  }, [project, isRemote, isDemo], 800);
 
   useEffect(() => {
     if (!dragging) return;
@@ -873,15 +991,13 @@ const App = () => {
   useEffect(() => {
     if (!project || !activeTabId) return;
     const diagramsInTab = project.data.diagrams.filter((diagram) => diagram.tabId === activeTabId);
-    const isSelectedInTab = diagramsInTab.some(
-      (diagram) => diagram.id === project.data.selectedDiagramId
-    );
+    const selectedId = project.data.selectedDiagramId;
+    if (!selectedId) return;
+    const isSelectedInTab = diagramsInTab.some((diagram) => diagram.id === selectedId);
     if (isSelectedInTab) return;
-    const nextSelected = diagramsInTab[0]?.id;
-    if (project.data.selectedDiagramId === nextSelected) return;
     updateProjectData((data) => ({
       ...data,
-      selectedDiagramId: nextSelected
+      selectedDiagramId: undefined
     }));
   }, [project, activeTabId]);
 
@@ -1348,7 +1464,7 @@ const App = () => {
       data.selectedDiagramId &&
       diagrams.some((diagram) => diagram.id === data.selectedDiagramId)
         ? data.selectedDiagramId
-        : diagramsInActiveTab[0]?.id ?? diagrams[0]?.id;
+        : undefined;
     return {
       ...data,
       diagrams,
@@ -1419,7 +1535,7 @@ const App = () => {
       window.alert("Add a neck diagram before exporting.");
       return;
     }
-    const tabName = tabs.find((tab) => tab.id === activeTabId)?.name ?? "Page";
+    const tabName = activeTab ? getTabDisplayName(activeTab, activeTabIndex) : "Page";
     const suggested = tabName;
     const name = window.prompt("Name this export", suggested);
     if (!name || !name.trim()) return;
@@ -1899,7 +2015,8 @@ const App = () => {
       ctx.setTransform(EXPORT_SCALE, 0, 0, EXPORT_SCALE, 0, 0);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
-      ctx.fillStyle = "#0b1015";
+      const pageBg = getCssVar("--bg", "#0b1015");
+      ctx.fillStyle = pageBg;
       ctx.fillRect(0, 0, width, height);
 
       images.forEach((item) => {
@@ -1919,7 +2036,7 @@ const App = () => {
       pdf.text(exportLabel, 12, 18);
       pdf.addImage(pngData, "PNG", 0, headerHeight, width, height);
 
-      const tabName = tabs.find((tab) => tab.id === activeTabId)?.name ?? "page";
+      const tabName = activeTab ? getTabDisplayName(activeTab, activeTabIndex) : "page";
       const fileBase = slugify(`${project.title}-${tabName}`) || "page";
       pdf.save(`${fileBase}.pdf`);
     } catch (error) {
@@ -1984,7 +2101,8 @@ const App = () => {
       ctx.setTransform(EXPORT_SCALE, 0, 0, EXPORT_SCALE, 0, 0);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
-      ctx.fillStyle = "#0b1015";
+      const pageBg = getCssVar("--bg", "#0b1015");
+      ctx.fillStyle = pageBg;
       ctx.fillRect(0, 0, width, height);
 
       images.forEach((item) => {
@@ -1999,7 +2117,7 @@ const App = () => {
       if (!blob) throw new Error("PNG export failed.");
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const tabName = tabs.find((tab) => tab.id === activeTabId)?.name ?? "page";
+      const tabName = activeTab ? getTabDisplayName(activeTab, activeTabIndex) : "page";
       const fileBase = slugify(`${project.title}-${tabName}`) || "page";
       link.href = url;
       link.download = `${fileBase}.png`;
@@ -2069,6 +2187,7 @@ const App = () => {
     return null;
   }, [status, project, diagramsInActiveTab.length]);
   const isEmptyProject = !!project && project.data.diagrams.length === 0;
+  const todayLabel = formatExportDate(new Date());
 
   if (status === "loading") {
     return (
@@ -2094,6 +2213,9 @@ const App = () => {
             <span> // Neck Diagram Studio</span>
           </span>
         </div>
+        <div className="header-meta">
+          <span className="header-date">{todayLabel}</span>
+        </div>
       </header>
 
       <div className="toolbar">
@@ -2111,7 +2233,9 @@ const App = () => {
           </button>
           {tabs.length > 1 ? (
             <div className="tabs-list" role="tablist" aria-label="Diagram tabs">
-              {tabs.map((tab) => (
+              {tabs.map((tab, index) => {
+                const displayName = getTabDisplayName(tab, index);
+                return (
                 <div key={tab.id} className="tab-item" data-tab-id={tab.id}>
                   <button
                     className={`tab-button${tab.id === activeTabId ? " is-active" : ""}`}
@@ -2120,7 +2244,7 @@ const App = () => {
                     aria-selected={tab.id === activeTabId}
                     onClick={() => handleTabSelect(tab.id)}
                   >
-                    {tab.name}
+                    {displayName}
                   </button>
                   <button
                     className="tab-close"
@@ -2129,15 +2253,16 @@ const App = () => {
                       event.stopPropagation();
                       requestDelete({ type: "tab", id: tab.id });
                     }}
-                    aria-label={`Close ${tab.name}`}
-                    title={`Close ${tab.name}`}
+                    aria-label={`Close ${displayName}`}
+                    title={`Close ${displayName}`}
                   >
                     <span className="nf-icon" aria-hidden="true">
                       {"\uf00d"}
                     </span>
                   </button>
                 </div>
-              ))}
+              );
+              })}
             </div>
           ) : null}
           <button className="tab-add" type="button" onClick={handleAddTab}>
@@ -2875,6 +3000,25 @@ const App = () => {
               ) : (
                 <p className="muted">Select a neck to edit its configuration.</p>
               )}
+              <div className="panel-subhead">Appearance</div>
+              <div className="theme-grid grid grid-cols-2 gap-2">
+                {THEMES.map((themeOption) => (
+                  <button
+                    key={themeOption.id}
+                    type="button"
+                    className={`theme-option${theme === themeOption.id ? " is-active" : ""}`}
+                    onClick={() => setTheme(themeOption.id)}
+                    aria-pressed={theme === themeOption.id}
+                  >
+                    <span
+                      className="theme-swatch"
+                      style={{ background: themeOption.preview }}
+                      aria-hidden="true"
+                    />
+                    <span>{themeOption.label}</span>
+                  </button>
+                ))}
+              </div>
               <div className="panel-subhead">Preferences</div>
               <div className="form-grid">
                 <label className="checkbox full">
@@ -2924,25 +3068,18 @@ const App = () => {
           >
             <div className="canvas-zoom" style={{ zoom: canvasZoom }}>
               {sidebarCollapsed && outlineMetrics ? (
-                <>
-                  <div
-                    className="page-outline"
-                    style={{
-                      width: outlineMetrics.width,
-                      height: outlineMetrics.height,
-                      left: outlineMetrics.left,
-                      top: outlineMetrics.top
-                    }}
-                  />
+                <div
+                  className="page-frame"
+                  style={{
+                    width: outlineMetrics.width,
+                    height: outlineMetrics.height,
+                    left: outlineMetrics.left,
+                    top: outlineMetrics.top
+                  }}
+                >
+                  <div className="page-outline" />
                   {(hasCustomTabTitle || showPageDate) ? (
-                    <div
-                      className="page-header"
-                      style={{
-                        width: outlineMetrics.width,
-                        left: outlineMetrics.left,
-                        top: outlineMetrics.top
-                      }}
-                    >
+                    <div className="page-header">
                       {hasCustomTabTitle ? (
                         <div className="page-title">{activeTabName}</div>
                       ) : null}
@@ -2951,7 +3088,7 @@ const App = () => {
                       ) : null}
                     </div>
                   ) : null}
-                </>
+                </div>
               ) : null}
               {diagramsInActiveTab.map((diagram) => {
                 const diagramKey = diagram.keyId ? libraryIndex[diagram.keyId] : undefined;
