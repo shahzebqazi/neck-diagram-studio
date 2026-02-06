@@ -1451,6 +1451,16 @@ const App = ({ mode = "studio" }: AppProps) => {
               )
             };
           }
+          if (existing.picking == null) {
+            return {
+              ...diagram,
+              notes: normalizeNotes(
+                diagram.notes.map((note) =>
+                  note.id === existing.id ? { ...note, picking: "D" } : note
+                )
+              )
+            };
+          }
         }
         return {
           ...diagram,
@@ -1515,15 +1525,6 @@ const App = ({ mode = "studio" }: AppProps) => {
     const name = window.prompt("Name this export", suggested);
     if (!name || !name.trim()) return;
     const title = name.trim();
-    setTitleInput(title);
-    setProject((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        title,
-        updatedAt: new Date().toISOString()
-      };
-    });
     const filename = `${slugify(title) || "neck-diagram"}.json`;
     const exportedAt = new Date();
     const payload = buildPageExportPayload({
@@ -1633,15 +1634,6 @@ const App = ({ mode = "studio" }: AppProps) => {
         selectedDiagramId: importedDiagrams[0]?.id ?? current.selectedDiagramId
       };
     });
-    setProject((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        title,
-        updatedAt: new Date().toISOString()
-      };
-    });
-    setTitleInput(title);
   };
 
   const importDiagramJson = async (file: File) => {
