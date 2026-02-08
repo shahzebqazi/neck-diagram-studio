@@ -1254,14 +1254,22 @@ const App = ({ mode = "studio" }: AppProps) => {
     });
   };
 
+  const resolveLibraryItem = (
+    id: string | undefined,
+    fallback: LibraryItem[]
+  ) => {
+    if (!id) return undefined;
+    return libraryIndex[id] ?? fallback.find((item) => item.id === id);
+  };
+
   const buildTheoryName = (
     keyId?: string,
     scaleId?: string,
     positionId?: string
   ) => {
-    const keyName = keyId ? libraryIndex[keyId]?.name : undefined;
-    const scaleName = scaleId ? libraryIndex[scaleId]?.name : undefined;
-    const positionName = positionId ? libraryIndex[positionId]?.name : undefined;
+    const keyName = resolveLibraryItem(keyId, keyOptions)?.name;
+    const scaleName = resolveLibraryItem(scaleId, scaleOptions)?.name;
+    const positionName = resolveLibraryItem(positionId, positionOptions)?.name;
     return [keyName, scaleName, positionName].filter(Boolean).join(" - ");
   };
 
@@ -1316,9 +1324,16 @@ const App = ({ mode = "studio" }: AppProps) => {
     positionId: string | undefined,
     index: Record<string, LibraryItem>
   ) => {
-    const rootKey = keyId ? index[keyId]?.name : undefined;
-    const scaleIntervals = scaleId ? index[scaleId]?.intervals ?? null : null;
-    const positionName = positionId ? index[positionId]?.name : undefined;
+    const rootKey =
+      (keyId ? index[keyId]?.name : undefined) ??
+      resolveLibraryItem(keyId, keyOptions)?.name;
+    const scaleIntervals =
+      (scaleId ? index[scaleId]?.intervals ?? null : null) ??
+      resolveLibraryItem(scaleId, scaleOptions)?.intervals ??
+      null;
+    const positionName =
+      (positionId ? index[positionId]?.name : undefined) ??
+      resolveLibraryItem(positionId, positionOptions)?.name;
     return buildScaleNotes(diagram, rootKey, scaleIntervals, positionName);
   };
 
@@ -1402,9 +1417,9 @@ const App = ({ mode = "studio" }: AppProps) => {
       project.data.scaleId,
       project.data.positionId
     );
-    const selectedPositionName = project.data.positionId
-      ? libraryIndex[project.data.positionId]?.name
-      : undefined;
+    const selectedPositionName =
+      resolveLibraryItem(project.data.positionId, positionOptions)?.name ??
+      (project.data.positionId ? libraryIndex[project.data.positionId]?.name : undefined);
     const positionPreset = getPositionPreset(selectedPositionName);
     const baseConfig = existing?.config ?? DEFAULT_NECK_CONFIG;
     const nextFrets = positionPreset?.minFrets
@@ -1426,10 +1441,12 @@ const App = ({ mode = "studio" }: AppProps) => {
       scaleId: project.data.scaleId,
       positionId: project.data.positionId
     });
-    const rootKey = project.data.keyId ? libraryIndex[project.data.keyId]?.name : undefined;
-    const scaleIntervals = project.data.scaleId
-      ? libraryIndex[project.data.scaleId]?.intervals ?? null
-      : null;
+    const rootKey =
+      resolveLibraryItem(project.data.keyId, keyOptions)?.name ??
+      (project.data.keyId ? libraryIndex[project.data.keyId]?.name : undefined);
+    const scaleIntervals =
+      resolveLibraryItem(project.data.scaleId, scaleOptions)?.intervals ??
+      (project.data.scaleId ? libraryIndex[project.data.scaleId]?.intervals ?? null : null);
     const notes = buildScaleNotes(diagram, rootKey, scaleIntervals, selectedPositionName);
     updateProjectData((data) => {
       const nextDiagrams = replaceId
@@ -2614,6 +2631,15 @@ const App = ({ mode = "studio" }: AppProps) => {
                   value={project?.data.keyId ?? ""}
                   onChange={(event) => {
                     const nextId = event.target.value || undefined;
+                    const nextItem = nextId
+                      ? keyOptions.find((item) => item.id === nextId)
+                      : undefined;
+                    if (nextItem) {
+                      const nextIndex = { ...libraryIndex, [nextItem.id]: nextItem };
+                      setLibraryIndex(nextIndex);
+                      updateTheorySelection({ keyId: nextId }, nextIndex);
+                      return;
+                    }
                     updateTheorySelection({ keyId: nextId });
                   }}
                 >
@@ -2631,6 +2657,15 @@ const App = ({ mode = "studio" }: AppProps) => {
                   value={project?.data.scaleId ?? ""}
                   onChange={(event) => {
                     const nextId = event.target.value || undefined;
+                    const nextItem = nextId
+                      ? scaleOptions.find((item) => item.id === nextId)
+                      : undefined;
+                    if (nextItem) {
+                      const nextIndex = { ...libraryIndex, [nextItem.id]: nextItem };
+                      setLibraryIndex(nextIndex);
+                      updateTheorySelection({ scaleId: nextId }, nextIndex);
+                      return;
+                    }
                     updateTheorySelection({ scaleId: nextId });
                   }}
                 >
@@ -2648,6 +2683,15 @@ const App = ({ mode = "studio" }: AppProps) => {
                   value={project?.data.positionId ?? ""}
                   onChange={(event) => {
                     const nextId = event.target.value || undefined;
+                    const nextItem = nextId
+                      ? positionOptions.find((item) => item.id === nextId)
+                      : undefined;
+                    if (nextItem) {
+                      const nextIndex = { ...libraryIndex, [nextItem.id]: nextItem };
+                      setLibraryIndex(nextIndex);
+                      updateTheorySelection({ positionId: nextId }, nextIndex);
+                      return;
+                    }
                     updateTheorySelection({ positionId: nextId });
                   }}
                 >
@@ -2785,6 +2829,15 @@ const App = ({ mode = "studio" }: AppProps) => {
                       value={selectedDiagram.keyId ?? ""}
                       onChange={(event) => {
                         const nextId = event.target.value || undefined;
+                        const nextItem = nextId
+                          ? keyOptions.find((item) => item.id === nextId)
+                          : undefined;
+                        const nextIndex = nextItem
+                          ? { ...libraryIndex, [nextItem.id]: nextItem }
+                          : libraryIndex;
+                        if (nextItem) {
+                          setLibraryIndex(nextIndex);
+                        }
                         updateDiagram(selectedDiagram.id, (diagram) => {
                           const updated = { ...diagram, keyId: nextId };
                           return {
@@ -2794,7 +2847,7 @@ const App = ({ mode = "studio" }: AppProps) => {
                               nextId,
                               updated.scaleId,
                               updated.positionId,
-                              libraryIndex
+                              nextIndex
                             )
                           };
                         });
@@ -2814,6 +2867,15 @@ const App = ({ mode = "studio" }: AppProps) => {
                       value={selectedDiagram.scaleId ?? ""}
                       onChange={(event) => {
                         const nextId = event.target.value || undefined;
+                        const nextItem = nextId
+                          ? scaleOptions.find((item) => item.id === nextId)
+                          : undefined;
+                        const nextIndex = nextItem
+                          ? { ...libraryIndex, [nextItem.id]: nextItem }
+                          : libraryIndex;
+                        if (nextItem) {
+                          setLibraryIndex(nextIndex);
+                        }
                         updateDiagram(selectedDiagram.id, (diagram) => {
                           const updated = { ...diagram, scaleId: nextId };
                           return {
@@ -2823,7 +2885,7 @@ const App = ({ mode = "studio" }: AppProps) => {
                               updated.keyId,
                               nextId,
                               updated.positionId,
-                              libraryIndex
+                              nextIndex
                             )
                           };
                         });
@@ -2843,6 +2905,15 @@ const App = ({ mode = "studio" }: AppProps) => {
                       value={selectedDiagram.positionId ?? ""}
                       onChange={(event) => {
                         const nextId = event.target.value || undefined;
+                        const nextItem = nextId
+                          ? positionOptions.find((item) => item.id === nextId)
+                          : undefined;
+                        const nextIndex = nextItem
+                          ? { ...libraryIndex, [nextItem.id]: nextItem }
+                          : libraryIndex;
+                        if (nextItem) {
+                          setLibraryIndex(nextIndex);
+                        }
                         updateDiagram(selectedDiagram.id, (diagram) => {
                           const updated = { ...diagram, positionId: nextId };
                           return {
@@ -2852,7 +2923,7 @@ const App = ({ mode = "studio" }: AppProps) => {
                               updated.keyId,
                               updated.scaleId,
                               nextId,
-                              libraryIndex
+                              nextIndex
                             )
                           };
                         });
