@@ -267,6 +267,39 @@ const NeckDiagram = ({
       style={{ width: diagram.width, height: diagram.height }}
       onPointerDown={onPointerDown}
     >
+      <div
+        className="neck-caption"
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          onRenameStart?.();
+        }}
+        onPointerDown={(event) => {
+          if (isRenaming) {
+            event.stopPropagation();
+          }
+        }}
+      >
+        {isRenaming ? (
+          <input
+            ref={renameInputRef}
+            value={renameDraft}
+            onChange={(event) => onRenameDraftChange?.(event.target.value)}
+            onBlur={() => onRenameCommit?.()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onRenameCommit?.();
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                onRenameCancel?.();
+              }
+            }}
+          />
+        ) : (
+          <span>{diagram.name}</span>
+        )}
+      </div>
       <svg
         ref={svgRef}
         className="neck-diagram-svg"
@@ -448,39 +481,6 @@ const NeckDiagram = ({
           </g>
         ) : null}
       </svg>
-      <div
-        className="neck-caption"
-        onDoubleClick={(event) => {
-          event.stopPropagation();
-          onRenameStart?.();
-        }}
-        onPointerDown={(event) => {
-          if (isRenaming) {
-            event.stopPropagation();
-          }
-        }}
-      >
-        {isRenaming ? (
-          <input
-            ref={renameInputRef}
-            value={renameDraft}
-            onChange={(event) => onRenameDraftChange?.(event.target.value)}
-            onBlur={() => onRenameCommit?.()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                onRenameCommit?.();
-              }
-              if (event.key === "Escape") {
-                event.preventDefault();
-                onRenameCancel?.();
-              }
-            }}
-          />
-        ) : (
-          <span>{diagram.name}</span>
-        )}
-      </div>
     </div>
   );
 };

@@ -4,6 +4,9 @@ type LibrarySeedItem = Omit<LibraryItem, "id">;
 
 const slugify = (value: string) =>
   value
+    .replace(/#/g, " sharp ")
+    .replace(/♯/g, " sharp ")
+    .replace(/♭/g, " flat ")
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "-")

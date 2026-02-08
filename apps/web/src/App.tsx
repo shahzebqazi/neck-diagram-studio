@@ -23,6 +23,7 @@ import { suggestTile } from "./lib/tiling";
 import { fetchLastProject, createProject, updateProject, fetchLibrary } from "./lib/api";
 import { loadLocalProject, saveLocalProject } from "./lib/storage";
 import { useDebouncedEffect } from "./lib/hooks";
+import { requestExportName, slugify } from "./lib/exportUtils";
 import { DEFAULT_KEYS, DEFAULT_MODES, DEFAULT_POSITIONS, DEFAULT_SCALES } from "./lib/libraryDefaults";
 import {
   createDefaultTab,
@@ -194,12 +195,23 @@ const EIGHT_STRING_PRESETS = [
   { label: "E Standard", tuning: ["E", "A", "D", "G", "C", "F", "A", "D"] }
 ] as const;
 
-const slugify = (value: string) =>
-  value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+const SVG_EXPORT_VARS: Array<{ name: string; fallback: string }> = [
+  { name: "--diagram-bg", fallback: "#000000" },
+  { name: "--diagram-border", fallback: "#ffffff" },
+  { name: "--diagram-string", fallback: "#ffffff" },
+  { name: "--diagram-fret", fallback: "#ffffff" },
+  { name: "--diagram-nut", fallback: "#ffffff" },
+  { name: "--diagram-capo", fallback: "#ffd400" },
+  { name: "--diagram-inlay", fallback: "#ffffff" },
+  { name: "--diagram-selection", fallback: "#ffd400" },
+  { name: "--note-root", fallback: "#ff4d4d" },
+  { name: "--note-in-scale", fallback: "#ffd400" },
+  { name: "--note-out-scale", fallback: "#ffffff" },
+  { name: "--note-label", fallback: "#000000" },
+  { name: "--note-stroke", fallback: "#ffffff" },
+  { name: "--muted", fallback: "#e0e0e0" },
+  { name: "--font-ui", fallback: "monospace" }
+];
 
 const getDiagramExportHeight = (diagram: NeckDiagram) => {
   const hasCaption = diagram.name?.trim().length > 0;
@@ -217,6 +229,15 @@ const toTilingDiagram = (diagram: NeckDiagram): NeckDiagram => ({
 
 const svgToImage = (svg: SVGSVGElement, caption?: string) => {
   const clone = svg.cloneNode(true) as SVGSVGElement;
+  if (typeof window !== "undefined") {
+    const styles = getComputedStyle(document.documentElement);
+    SVG_EXPORT_VARS.forEach(({ name, fallback }) => {
+      const value = styles.getPropertyValue(name).trim() || fallback;
+      if (value) {
+        clone.style.setProperty(name, value);
+      }
+    });
+  }
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
   const width = Number(svg.getAttribute("width") ?? svg.clientWidth);
@@ -271,6 +292,17 @@ const normalizeNotes = (notes: Note[]) => {
   });
   return Array.from(deduped.values());
 };
+
+const clampNotesToConfig = (notes: Note[], strings: number, frets: number) =>
+  normalizeNotes(
+    notes.filter(
+      (note) =>
+        note.stringIndex >= 0 &&
+        note.stringIndex < strings &&
+        note.fret >= -1 &&
+        note.fret < frets
+    )
+  );
 
 const getDisplayTitle = (record: ProjectRecord | null) => {
   if (!record) return "";
@@ -410,6 +442,9 @@ const App = ({ mode = "studio" }: AppProps) => {
     settings: true
   });
   const migratedProjectRef = useRef<string | null>(null);
+  const projectRef = useRef<ProjectRecord | null>(null);
+  const activeTabIdRef = useRef<string | null>(null);
+  const canvasZoomRef = useRef(1);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -436,6 +471,18 @@ const App = ({ mode = "studio" }: AppProps) => {
     if (!project || !activeTabId) return [];
     return project.data.diagrams.filter((diagram) => diagram.tabId === activeTabId);
   }, [project, activeTabId]);
+
+  useEffect(() => {
+    projectRef.current = project;
+  }, [project]);
+
+  useEffect(() => {
+    activeTabIdRef.current = activeTabId;
+  }, [activeTabId]);
+
+  useEffect(() => {
+    canvasZoomRef.current = canvasZoom;
+  }, [canvasZoom]);
 
   const selectedDiagram = useMemo(() => {
     if (!project?.data.selectedDiagramId || !activeTabId) return null;
@@ -823,7 +870,24 @@ const App = ({ mode = "studio" }: AppProps) => {
         setLibraryIndex((prev) => ({ ...prev, ...nextIndex }));
       } catch {
         if (!active) return;
-        setLibraryResults([]);
+        const query = libraryQuery.trim().toLowerCase();
+        const fallbackItems = [...keyOptions, ...scaleOptions, ...positionOptions];
+        const allowedPositionNames = new Set(
+          DEFAULT_POSITIONS.map((item) => item.name.toLowerCase())
+        );
+        const filtered = fallbackItems.filter((item) => {
+          if (item.type === "shape") return false;
+          if (libraryType !== "all" && item.type !== libraryType) return false;
+          if (item.type === "position") {
+            return (
+              allowedPositionNames.has(item.name.toLowerCase()) &&
+              (query.length === 0 || item.name.toLowerCase().includes(query))
+            );
+          }
+          if (query.length === 0) return true;
+          return item.name.toLowerCase().includes(query);
+        });
+        setLibraryResults(filtered);
       }
     };
 
@@ -836,7 +900,7 @@ const App = ({ mode = "studio" }: AppProps) => {
     return () => {
       active = false;
     };
-  }, [libraryQuery, libraryType]);
+  }, [libraryQuery, libraryType, keyOptions, scaleOptions, positionOptions]);
 
   useDebouncedEffect(() => {
     if (!project) return;
@@ -874,7 +938,7 @@ const App = ({ mode = "studio" }: AppProps) => {
     const handleMove = (event: PointerEvent) => {
       const dragState = dragRef.current;
       if (!dragState) return;
-      const zoomFactor = canvasZoom || 1;
+      const zoomFactor = canvasZoomRef.current || 1;
       const dx = (event.clientX - dragState.startX) / zoomFactor;
       const dy = (event.clientY - dragState.startY) / zoomFactor;
       const distance = Math.hypot(dx, dy);
@@ -948,12 +1012,13 @@ const App = ({ mode = "studio" }: AppProps) => {
         didMove && dragState?.mode === "move" && dragState?.id
           ? isOverTrash(dragState.id)
           : false;
+      const currentActiveTabId = activeTabIdRef.current;
       const dropTabId =
         didMove && dragState?.mode === "move"
           ? getTabDropTarget(event.clientX, event.clientY)
           : null;
       const shouldMove =
-        dropTabId && dragState?.id && dropTabId !== activeTabId ? dropTabId : null;
+        dropTabId && dragState?.id && dropTabId !== currentActiveTabId ? dropTabId : null;
       dragRef.current = null;
       setDragging(false);
       setDragMode(null);
@@ -976,7 +1041,7 @@ const App = ({ mode = "studio" }: AppProps) => {
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerup", handleUp);
     };
-  }, [dragging, canvasZoom, activeTabId, tabs, project]);
+  }, [dragging]);
 
   useEffect(() => {
     if (!resizingSidebar) return;
@@ -1272,6 +1337,62 @@ const App = ({ mode = "studio" }: AppProps) => {
     }));
   };
 
+  const buildDiagramNotes = (
+    diagram: NeckDiagram,
+    keyId: string | undefined,
+    scaleId: string | undefined,
+    positionId: string | undefined,
+    index: Record<string, LibraryItem>
+  ) => {
+    const rootKey = keyId ? index[keyId]?.name : undefined;
+    const scaleIntervals = scaleId ? index[scaleId]?.intervals ?? null : null;
+    const positionName = positionId ? index[positionId]?.name : undefined;
+    return buildScaleNotes(diagram, rootKey, scaleIntervals, positionName);
+  };
+
+  const updateTheorySelection = (
+    patch: {
+      keyId?: string;
+      scaleId?: string;
+      positionId?: string;
+    },
+    indexOverride?: Record<string, LibraryItem>
+  ) => {
+    const index = indexOverride ?? libraryIndex;
+    updateProjectData((data) => {
+      const hasKey = Object.prototype.hasOwnProperty.call(patch, "keyId");
+      const hasScale = Object.prototype.hasOwnProperty.call(patch, "scaleId");
+      const hasPosition = Object.prototype.hasOwnProperty.call(patch, "positionId");
+      const nextKeyId = hasKey ? patch.keyId : data.keyId;
+      const nextScaleId = hasScale ? patch.scaleId : data.scaleId;
+      const nextPositionId = hasPosition ? patch.positionId : data.positionId;
+      return {
+        ...data,
+        keyId: nextKeyId,
+        scaleId: nextScaleId,
+        positionId: nextPositionId,
+        diagrams: data.diagrams.map((diagram) => {
+          const updated = {
+            ...diagram,
+            keyId: nextKeyId,
+            scaleId: nextScaleId,
+            positionId: nextPositionId
+          };
+          return {
+            ...updated,
+            notes: buildDiagramNotes(
+              updated,
+              nextKeyId,
+              nextScaleId,
+              nextPositionId,
+              index
+            )
+          };
+        })
+      };
+    });
+  };
+
   const handleAddDiagramFromTheory = (replaceId?: string) => {
     if (!project) return;
     setSelectionTarget("diagram");
@@ -1282,8 +1403,10 @@ const App = ({ mode = "studio" }: AppProps) => {
       nextTabs = [fallbackTab];
       targetTabId = fallbackTab.id;
     }
+    const existing = replaceId
+      ? project.data.diagrams.find((diagram) => diagram.id === replaceId)
+      : undefined;
     if (replaceId) {
-      const existing = project.data.diagrams.find((diagram) => diagram.id === replaceId);
       if (existing) {
         targetTabId = existing.tabId ?? targetTabId;
       }
@@ -1311,19 +1434,21 @@ const App = ({ mode = "studio" }: AppProps) => {
       ? libraryIndex[project.data.positionId]?.name
       : undefined;
     const positionPreset = getPositionPreset(selectedPositionName);
+    const baseConfig = existing?.config ?? DEFAULT_NECK_CONFIG;
     const nextFrets = positionPreset?.minFrets
-      ? Math.max(DEFAULT_NECK_CONFIG.frets, positionPreset.minFrets)
-      : DEFAULT_NECK_CONFIG.frets;
+      ? Math.max(baseConfig.frets, positionPreset.minFrets)
+      : baseConfig.frets;
     const diagram = createNeckDiagram({
       x: position.x,
       y: position.y,
       name: generatedName || `Neck ${nameIndex}`,
-      labelMode: defaultLabelMode,
+      labelMode: existing?.labelMode ?? defaultLabelMode,
       tabId: targetTabId,
       layoutMode: isFirstInTab ? "float" : "grid",
       config: {
-        ...DEFAULT_NECK_CONFIG,
-        frets: nextFrets
+        ...baseConfig,
+        frets: nextFrets,
+        tuning: normalizeTuning(baseConfig.strings, baseConfig.tuning)
       },
       keyId: project.data.keyId,
       scaleId: project.data.scaleId,
@@ -1845,8 +1970,9 @@ const App = ({ mode = "studio" }: AppProps) => {
   }, [requestDelete]);
 
   const moveDiagramToTab = (diagramId: string, tabId: string) => {
-    if (!project) return;
-    if (!project.data.tabs?.some((tab) => tab.id === tabId)) return;
+    const currentProject = projectRef.current;
+    if (!currentProject) return;
+    if (!currentProject.data.tabs?.some((tab) => tab.id === tabId)) return;
     setSelectionTarget("diagram");
     updateProjectData((data) => ({
       ...data,
@@ -1882,6 +2008,14 @@ const App = ({ mode = "studio" }: AppProps) => {
       return;
     }
 
+    const theoryName = getDiagramTheoryName(selectedDiagram);
+    const defaultBase =
+      format === "pdf" && theoryName
+        ? slugify(theoryName) || buildExportName(selectedDiagram)
+        : buildExportName(selectedDiagram);
+    const filename = requestExportName("Name this export", defaultBase);
+    if (!filename) return;
+
     try {
       setExporting(true);
       if (document.fonts?.ready) {
@@ -1898,12 +2032,6 @@ const App = ({ mode = "studio" }: AppProps) => {
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
       ctx.drawImage(image, 0, 0);
-
-      const theoryName = getDiagramTheoryName(selectedDiagram);
-      const filename =
-        format === "pdf" && theoryName
-          ? slugify(theoryName) || buildExportName(selectedDiagram)
-          : buildExportName(selectedDiagram);
 
       if (format === "png") {
         const blob = await new Promise<Blob | null>((resolve) =>
@@ -1947,6 +2075,11 @@ const App = ({ mode = "studio" }: AppProps) => {
       window.alert("Add a neck diagram before exporting.");
       return;
     }
+
+    const tabName = activeTab ? getTabDisplayName(activeTab, activeTabIndex) : "page";
+    const defaultBase = slugify(`${project.title}-${tabName}`) || "page";
+    const fileBase = requestExportName("Name this export", defaultBase);
+    if (!fileBase) return;
 
     try {
       setExporting(true);
@@ -2019,8 +2152,6 @@ const App = ({ mode = "studio" }: AppProps) => {
       pdf.text(exportLabel, 12, 18);
       pdf.addImage(pngData, "PNG", 0, headerHeight, width, height);
 
-      const tabName = activeTab ? getTabDisplayName(activeTab, activeTabIndex) : "page";
-      const fileBase = slugify(`${project.title}-${tabName}`) || "page";
       pdf.save(`${fileBase}.pdf`);
     } catch (error) {
       console.error(error);
@@ -2036,6 +2167,11 @@ const App = ({ mode = "studio" }: AppProps) => {
       window.alert("Add a neck diagram before exporting.");
       return;
     }
+
+    const tabName = activeTab ? getTabDisplayName(activeTab, activeTabIndex) : "page";
+    const defaultBase = slugify(`${project.title}-${tabName}`) || "page";
+    const fileBase = requestExportName("Name this export", defaultBase);
+    if (!fileBase) return;
 
     try {
       setExporting(true);
@@ -2100,8 +2236,6 @@ const App = ({ mode = "studio" }: AppProps) => {
       if (!blob) throw new Error("PNG export failed.");
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const tabName = activeTab ? getTabDisplayName(activeTab, activeTabIndex) : "page";
-      const fileBase = slugify(`${project.title}-${tabName}`) || "page";
       link.href = url;
       link.download = `${fileBase}.png`;
       link.click();
@@ -2130,15 +2264,24 @@ const App = ({ mode = "studio" }: AppProps) => {
   const handleConfigChange = (patch: Partial<NeckDiagram["config"]>) => {
     if (!selectedDiagram) return;
     updateDiagram(selectedDiagram.id, (diagram) => {
-      const nextStrings = patch.strings ?? diagram.config.strings;
+      const hasStrings = Object.prototype.hasOwnProperty.call(patch, "strings");
+      const hasFrets = Object.prototype.hasOwnProperty.call(patch, "frets");
+      const nextStrings = hasStrings ? patch.strings ?? diagram.config.strings : diagram.config.strings;
+      const nextFrets = hasFrets ? patch.frets ?? diagram.config.frets : diagram.config.frets;
       const nextTuning = patch.tuning
         ? normalizeTuning(nextStrings, patch.tuning)
         : normalizeTuning(nextStrings, diagram.config.tuning);
+      const nextNotes =
+        hasStrings || hasFrets
+          ? clampNotesToConfig(diagram.notes, nextStrings, nextFrets)
+          : diagram.notes;
       return {
         ...diagram,
+        notes: nextNotes,
         config: {
           ...diagram.config,
           ...patch,
+          frets: nextFrets,
           strings: nextStrings,
           tuning: nextTuning
         }
@@ -2147,18 +2290,19 @@ const App = ({ mode = "studio" }: AppProps) => {
   };
 
   const handleLibrarySelect = (item: LibraryItem) => {
-    setLibraryIndex((prev) => ({ ...prev, [item.id]: item }));
+    const nextIndex = { ...libraryIndex, [item.id]: item };
+    setLibraryIndex(nextIndex);
 
     if (item.type === "key") {
-      updateProjectData((data) => ({ ...data, keyId: item.id }));
+      updateTheorySelection({ keyId: item.id }, nextIndex);
     }
 
     if (item.type === "scale" || item.type === "mode") {
-      updateProjectData((data) => ({ ...data, scaleId: item.id }));
+      updateTheorySelection({ scaleId: item.id }, nextIndex);
     }
 
     if (item.type === "position") {
-      updateProjectData((data) => ({ ...data, positionId: item.id }));
+      updateTheorySelection({ positionId: item.id }, nextIndex);
     }
   };
 
@@ -2170,8 +2314,6 @@ const App = ({ mode = "studio" }: AppProps) => {
     return null;
   }, [status, project, diagramsInActiveTab.length]);
   const isEmptyProject = !!project && project.data.diagrams.length === 0;
-  const todayLabel = formatExportDate(new Date());
-
   if (status === "loading") {
     return (
       <div className="app loading">
@@ -2195,9 +2337,6 @@ const App = ({ mode = "studio" }: AppProps) => {
             </a>
             <span> // Neck Diagram Studio</span>
           </span>
-        </div>
-        <div className="header-meta">
-          <span className="header-date">{todayLabel}</span>
         </div>
       </header>
 
@@ -2506,7 +2645,7 @@ const App = ({ mode = "studio" }: AppProps) => {
                   value={project?.data.keyId ?? ""}
                   onChange={(event) => {
                     const nextId = event.target.value || undefined;
-                    updateProjectData((data) => ({ ...data, keyId: nextId }));
+                    updateTheorySelection({ keyId: nextId });
                   }}
                 >
                   <option value="">Select Key</option>
@@ -2523,7 +2662,7 @@ const App = ({ mode = "studio" }: AppProps) => {
                   value={project?.data.scaleId ?? ""}
                   onChange={(event) => {
                     const nextId = event.target.value || undefined;
-                    updateProjectData((data) => ({ ...data, scaleId: nextId }));
+                    updateTheorySelection({ scaleId: nextId });
                   }}
                 >
                   <option value="">Select Scale</option>
@@ -2540,7 +2679,7 @@ const App = ({ mode = "studio" }: AppProps) => {
                   value={project?.data.positionId ?? ""}
                   onChange={(event) => {
                     const nextId = event.target.value || undefined;
-                    updateProjectData((data) => ({ ...data, positionId: nextId }));
+                    updateTheorySelection({ positionId: nextId });
                   }}
                 >
                   <option value="">Select Position</option>
@@ -2677,10 +2816,19 @@ const App = ({ mode = "studio" }: AppProps) => {
                       value={selectedDiagram.keyId ?? ""}
                       onChange={(event) => {
                         const nextId = event.target.value || undefined;
-                        updateDiagram(selectedDiagram.id, (diagram) => ({
-                          ...diagram,
-                          keyId: nextId
-                        }));
+                        updateDiagram(selectedDiagram.id, (diagram) => {
+                          const updated = { ...diagram, keyId: nextId };
+                          return {
+                            ...updated,
+                            notes: buildDiagramNotes(
+                              updated,
+                              nextId,
+                              updated.scaleId,
+                              updated.positionId,
+                              libraryIndex
+                            )
+                          };
+                        });
                       }}
                     >
                       <option value="">Select Key</option>
@@ -2697,10 +2845,19 @@ const App = ({ mode = "studio" }: AppProps) => {
                       value={selectedDiagram.scaleId ?? ""}
                       onChange={(event) => {
                         const nextId = event.target.value || undefined;
-                        updateDiagram(selectedDiagram.id, (diagram) => ({
-                          ...diagram,
-                          scaleId: nextId
-                        }));
+                        updateDiagram(selectedDiagram.id, (diagram) => {
+                          const updated = { ...diagram, scaleId: nextId };
+                          return {
+                            ...updated,
+                            notes: buildDiagramNotes(
+                              updated,
+                              updated.keyId,
+                              nextId,
+                              updated.positionId,
+                              libraryIndex
+                            )
+                          };
+                        });
                       }}
                     >
                       <option value="">Select Scale</option>
@@ -2717,10 +2874,19 @@ const App = ({ mode = "studio" }: AppProps) => {
                       value={selectedDiagram.positionId ?? ""}
                       onChange={(event) => {
                         const nextId = event.target.value || undefined;
-                        updateDiagram(selectedDiagram.id, (diagram) => ({
-                          ...diagram,
-                          positionId: nextId
-                        }));
+                        updateDiagram(selectedDiagram.id, (diagram) => {
+                          const updated = { ...diagram, positionId: nextId };
+                          return {
+                            ...updated,
+                            notes: buildDiagramNotes(
+                              updated,
+                              updated.keyId,
+                              updated.scaleId,
+                              nextId,
+                              libraryIndex
+                            )
+                          };
+                        });
                       }}
                     >
                       <option value="">Select Position</option>
@@ -2936,11 +3102,19 @@ const App = ({ mode = "studio" }: AppProps) => {
                     Note Display
                     <select
                       value={selectedDiagram.config.displayStandardTuning ? "standard" : "tuning"}
-                      onChange={(event) =>
-                        handleConfigChange({
-                          displayStandardTuning: event.target.value === "standard"
-                        })
-                      }
+                      onChange={(event) => {
+                        const displayStandardTuning = event.target.value === "standard";
+                        updateProjectData((data) => ({
+                          ...data,
+                          diagrams: data.diagrams.map((diagram) => {
+                            if (activeTabId && diagram.tabId !== activeTabId) return diagram;
+                            return {
+                              ...diagram,
+                              config: { ...diagram.config, displayStandardTuning }
+                            };
+                          })
+                        }));
+                      }}
                     >
                       <option value="tuning">Transpose to tuning</option>
                       <option value="standard">Standard tuning</option>

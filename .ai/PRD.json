@@ -23,7 +23,16 @@
   ],
   "known_issues": [
     "Bug: PNG/PDF export does not prompt for a filename; users cannot name the file before download.",
-    "Bug: PNG/PDF export renders black output in some cases; exports must preserve the diagram colors."
+    "Bug: PNG/PDF export renders black output in some cases; exports must preserve the diagram colors.",
+    "Bug: Resizing the browser viewport does not keep diagrams centered; diagrams drift to the right after resize.",
+    "Bug: Creating a diagram from Theory with A harmonic minor selected generates A# harmonic minor instead.",
+    "Bug: Selecting 27 frets causes neck diagrams to stop evaluating/rendering correctly.",
+    "Bug: Fret number labels overlap the diagram title; move the title above the diagram rather than below.",
+    "Bug: Selecting G major in Theory renders G# major instead.",
+    "Bug: Changing strings to 4 leaves notes on removed strings (stringIndex >= 4).",
+    "Bug: Reducing frets to 5 leaves notes on frets >= 5.",
+    "Bug: Changing key/scale/position in the Diagram panel does not regenerate notes; note positions stay identical.",
+    "Bug: Diagram panel Mode dropdown is not clickable; label mode menu fails to open."
   ],
   "functional_requirements": {
     "canvas": [
@@ -62,6 +71,9 @@
     ],
     "library": [
       "Search bar and dropdown for scales, positions, keys, modes, shapes.",
+      "Remove the non-functional library dropdown menu; keep the search bar.",
+      "When searching for a shape, scale, or mode, provide autocomplete suggestions from the database.",
+      "If no matching library item exists, inform the user the search is invalid.",
       "Create Diagram uses the current key/scale/position selections and adds a new neck when nothing is selected.",
       "Replace Diagram updates only the currently selected neck and preserves its on-canvas position and size."
     ],

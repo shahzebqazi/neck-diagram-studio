@@ -81,6 +81,14 @@ describe("project payload parsing", () => {
     const parsed = parseProjectPayload({ foo: "bar" });
     expect(parsed.data).toBeNull();
   });
+
+  it("rejects payloads with non-array diagrams", () => {
+    const parsed = parseProjectPayload({
+      title: "Bad Payload",
+      data: { diagrams: "nope", createdAt: "", updatedAt: "" }
+    });
+    expect(parsed.data).toBeNull();
+  });
 });
 
 describe("imported diagram normalization", () => {
