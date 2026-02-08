@@ -111,7 +111,6 @@ const POSITION_PRESETS: Record<
 };
 const ICONS = {
   add: "\uf067",
-  mode: "\uf0b0",
   export: "\uf019",
   png: "\uf1c5",
   pdf: "\uf1c1",
@@ -415,7 +414,6 @@ const App = ({ mode = "studio" }: AppProps) => {
   });
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [sidebarOffset, setSidebarOffset] = useState(0);
-  const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [importMenuOpen, setImportMenuOpen] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [importMode, setImportMode] = useState<"diagram" | "page" | null>(null);
@@ -450,7 +448,6 @@ const App = ({ mode = "studio" }: AppProps) => {
   const dragRef = useRef<DragState | null>(null);
   const trashRef = useRef<HTMLDivElement | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
-  const modeMenuRef = useRef<HTMLDivElement | null>(null);
   const importMenuRef = useRef<HTMLDivElement | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
   const requestDeleteRef = useRef<(action: DeleteAction | null) => void>(() => {});
@@ -1126,31 +1123,6 @@ const App = ({ mode = "studio" }: AppProps) => {
       selectedDiagramId: undefined
     }));
   }, [project, activeTabId]);
-
-  useEffect(() => {
-    if (!modeMenuOpen) return;
-
-    const handleClick = (event: MouseEvent) => {
-      if (!modeMenuRef.current) return;
-      if (!modeMenuRef.current.contains(event.target as Node)) {
-        setModeMenuOpen(false);
-      }
-    };
-
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setModeMenuOpen(false);
-      }
-    };
-
-    window.addEventListener("mousedown", handleClick);
-    window.addEventListener("keydown", handleKey);
-
-    return () => {
-      window.removeEventListener("mousedown", handleClick);
-      window.removeEventListener("keydown", handleKey);
-    };
-  }, [modeMenuOpen]);
 
   useEffect(() => {
     if (!sidebarCollapsed || diagramsInActiveTab.length === 0) {
@@ -1994,7 +1966,6 @@ const App = ({ mode = "studio" }: AppProps) => {
     setSidebarCollapsed((prev) => !prev);
   };
 
-  const closeModeMenu = () => setModeMenuOpen(false);
   const closeImportMenu = () => setImportMenuOpen(false);
   const closeExportMenu = () => setExportMenuOpen(false);
 
@@ -2429,7 +2400,6 @@ const App = ({ mode = "studio" }: AppProps) => {
               onClick={() => {
                 setImportMenuOpen((prev) => !prev);
                 setExportMenuOpen(false);
-                setModeMenuOpen(false);
               }}
               aria-expanded={importMenuOpen}
               aria-haspopup="menu"
@@ -2482,7 +2452,6 @@ const App = ({ mode = "studio" }: AppProps) => {
               onClick={() => {
                 setExportMenuOpen((prev) => !prev);
                 setImportMenuOpen(false);
-                setModeMenuOpen(false);
               }}
               aria-expanded={exportMenuOpen}
               aria-haspopup="menu"
@@ -2899,50 +2868,17 @@ const App = ({ mode = "studio" }: AppProps) => {
                   </label>
                   <label className="full">
                     Mode
-                    <div className={`dropdown field-dropdown${modeMenuOpen ? " is-open" : ""}`} ref={modeMenuRef}>
-                      <button
-                        className="tool-button"
-                        type="button"
-                        onClick={() => {
-                          setModeMenuOpen((prev) => !prev);
-                          setImportMenuOpen(false);
-                          setExportMenuOpen(false);
-                        }}
-                        aria-expanded={modeMenuOpen}
-                        aria-haspopup="menu"
-                      >
-                        <span className="nf-icon" aria-hidden="true">
-                          {ICONS.mode}
-                        </span>
-                        <span>Mode</span>
-                        <span className="nf-icon" aria-hidden="true">
-                          {ICONS.chevron}
-                        </span>
-                      </button>
-                      {modeMenuOpen ? (
-                        <div className="dropdown-menu" role="menu">
-                          {(["key", "interval", "picking"] as LabelMode[]).map((mode) => {
-                            const isActive = (selectedDiagram.labelMode ?? defaultLabelMode) === mode;
-                            const label = mode === "key" ? "Key" : mode === "interval" ? "Interval" : "Picking";
-                            return (
-                              <button
-                                key={mode}
-                                className={`dropdown-item${isActive ? " is-active" : ""}`}
-                                type="button"
-                                role="menuitemradio"
-                                aria-checked={isActive}
-                                onClick={() => {
-                                  handleLabelModeChange(mode);
-                                  closeModeMenu();
-                                }}
-                              >
-                                <span>{label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : null}
-                    </div>
+                    <select
+                      value={selectedDiagram.labelMode ?? defaultLabelMode}
+                      onChange={(event) => {
+                        const nextMode = event.target.value as LabelMode;
+                        handleLabelModeChange(nextMode);
+                      }}
+                    >
+                      <option value="key">Key</option>
+                      <option value="interval">Interval</option>
+                      <option value="picking">Picking</option>
+                    </select>
                   </label>
                   <label>
                     Frets
