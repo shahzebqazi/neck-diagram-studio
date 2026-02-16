@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Lead and Orchestrator"
+  short_description: "Deploy Codex treads using XP delivery"
+  default_prompt: "Use $project-lead-orchestrator to deploy Codex treads and execute Neck Diagrams work with Agile XP practices."
