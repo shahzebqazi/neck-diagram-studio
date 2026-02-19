@@ -123,6 +123,7 @@ const ICONS = {
   upload: "\uf093",
   trash: "\uf1f8",
   chevron: "\uf078",
+  worksheets: "\uf718",
   theory: "\uf02d",
   diagram: "\uf0e8",
   instrument: "\uf001",
@@ -439,6 +440,7 @@ const App = ({ mode = "studio" }: AppProps) => {
     return stored && isThemeId(stored) ? stored : DEFAULT_THEME;
   });
   const [panelOpen, setPanelOpen] = useState({
+    worksheets: true,
     theory: true,
     diagram: true,
     instrument: true,
@@ -2612,6 +2614,37 @@ const App = ({ mode = "studio" }: AppProps) => {
           aria-hidden={sidebarCollapsed}
           style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
         >
+          <section className="panel">
+            <div
+              className="panel-header"
+              onClick={() => openPanelFromCompact("worksheets")}
+              role={isSidebarCompact ? "button" : undefined}
+              tabIndex={isSidebarCompact ? 0 : undefined}
+            >
+              <h3 title="Worksheets">
+                <span className="panel-icon nf-icon" aria-hidden="true">
+                  {ICONS.worksheets}
+                </span>
+                <span className="panel-title">Worksheets</span>
+              </h3>
+              <button
+                className="panel-toggle"
+                type="button"
+                onClick={() => togglePanel("worksheets")}
+                aria-expanded={panelOpen.worksheets}
+                aria-label={panelOpen.worksheets ? "Collapse Worksheets" : "Expand Worksheets"}
+              >
+                <span className="nf-icon" aria-hidden="true">
+                  {ICONS.chevron}
+                </span>
+              </button>
+            </div>
+            <div className={`panel-body${panelOpen.worksheets ? "" : " is-collapsed"}`}>
+              <p className="muted" style={{ margin: 0, fontSize: "13px" }}>
+                Worksheet content coming soon.
+              </p>
+            </div>
+          </section>
           <section className="panel">
             <div
               className="panel-header"

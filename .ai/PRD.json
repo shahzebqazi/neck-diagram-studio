@@ -169,7 +169,7 @@
       "Theme defaults to high-contrast for first-time users unless overridden by neck-diagram:theme.",
       "Sidebar defaults to collapsed unless neck-diagram:sidebar-collapsed is set.",
       "Delete warning defaults to true unless neck-diagram:delete-warning is false.",
-      "Panels default open: theory, diagram, instrument, settings."
+      "Panels default open: worksheets, theory, diagram, instrument, settings."
     ],
     "storage_keys": [
       "Project cache: neck-diagram:last-project.",
@@ -274,8 +274,8 @@
   "database": [],
   "devops": [],
   "hosting": [
-    "Use the custom domain neckdiagramstudio.com.",
-    "Host the site via GitLab Pages."
+    "Host the site via GitLab Pages.",
+    "Custom domain neckdiagramstudio.com is configured and verified (DNS at GoDaddy; HTTPS via Let's Encrypt)."
   ],
   "git_ops": [
     "Maintain the demo page on a dedicated GitLab branch (separate from main).",
