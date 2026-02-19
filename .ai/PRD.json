@@ -255,7 +255,8 @@
     "Collapsed sidebar view keeps page outline centered with consistent padding.",
     "Demo page should feel fully interactive but clearly marked as demo mode.",
     "Landing page should be concise, clear, and link-focused.",
-    "Responsive layout should avoid awkward nav wrapping and preserve visual balance across breakpoints."
+    "Responsive layout should avoid awkward nav wrapping and preserve visual balance across breakpoints.",
+    "In narrow viewports (≤960px) the sidebar overlays the canvas with correct z-index and width so it renders on top."
   ],
   "quality_tech_debt": [
     "Reduce drag listener churn by decoupling drag handlers from frequently-updated state; avoid re-registering listeners on every pointer move.",
