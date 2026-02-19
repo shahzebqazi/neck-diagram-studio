@@ -112,6 +112,10 @@
       "OLED blackout theme replaces orange accents with a red/white/gray palette.",
       "Jaffa Cake theme uses a brighter, more vivid orange accent."
     ],
+    "export": [
+      "PDF export must render at 300 DPI for print-ready output.",
+      "Page outline (letter paper) must be centered in the viewport, remain correct at all zoom levels, and scale appropriately across screen resolutions."
+    ],
     "testing": [
       "Add an automated test suite that covers import/export flows for diagrams, pages, and JSON.",
       "Import/export tests must cover invalid JSON and regression cases.",

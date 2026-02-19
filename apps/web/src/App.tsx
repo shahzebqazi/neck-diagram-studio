@@ -41,6 +41,9 @@ const MIN_HEIGHT = 90;
 const MAX_WIDTH = 1200;
 const MAX_HEIGHT = 400;
 const EXPORT_SCALE = 2;
+/** 300 DPI for print-ready PDFs (screen is 96 DPI). */
+const PDF_DPI = 300;
+const SCREEN_DPI = 96;
 const EXPORT_CAPTION_HEIGHT = 28;
 const FRET_NUMBER_MARGIN = 6;
 const MIN_NOTE_RADIUS = 8;
@@ -53,6 +56,8 @@ const ZOOM_STEP = 0.1;
 const DRAG_THRESHOLD = 4;
 const US_LETTER_SIZE = { width: 816, height: 1056 };
 const OUTLINE_PADDING = 32;
+/** Padding on canvas-surface (styles.css); used so outline is centered in the visible content area at any zoom/resolution. */
+const CANVAS_SURFACE_PADDING = 24;
 const TILE_GAP = 24;
 const MIN_SIDEBAR_WIDTH = 120;
 const MAX_SIDEBAR_WIDTH = 480;
@@ -501,13 +506,13 @@ const App = ({ mode = "studio" }: AppProps) => {
     if (!sidebarCollapsed) return null;
     const offsetX = sidebarOffset;
     if (diagramsInActiveTab.length === 0) {
-      const canvasWidth = canvasSize.width / canvasZoom;
-      const canvasHeight = canvasSize.height / canvasZoom;
+      const visibleW = (canvasSize.width - 2 * CANVAS_SURFACE_PADDING) / canvasZoom;
+      const visibleH = (canvasSize.height - 2 * CANVAS_SURFACE_PADDING) / canvasZoom;
       return {
         width: US_LETTER_SIZE.width,
         height: US_LETTER_SIZE.height,
-        left: Math.max(0, canvasWidth / 2 - US_LETTER_SIZE.width / 2),
-        top: Math.max(0, canvasHeight / 2 - US_LETTER_SIZE.height / 2)
+        left: Math.max(0, visibleW / 2 - US_LETTER_SIZE.width / 2),
+        top: Math.max(0, visibleH / 2 - US_LETTER_SIZE.height / 2)
       };
     }
     const minX = Math.min(...diagramsInActiveTab.map((diagram) => diagram.x));
@@ -1136,16 +1141,17 @@ const App = ({ mode = "studio" }: AppProps) => {
     }));
     const minX = Math.min(...widths.map((item) => item.left));
     const maxX = Math.max(...widths.map((item) => item.right));
-    const canvasWidth = canvasSize.width;
-    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || canvasWidth <= 0) {
+    const visibleWidth = canvasSize.width - 2 * CANVAS_SURFACE_PADDING;
+    const viewportWidth = visibleWidth / canvasZoom;
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || viewportWidth <= 0) {
       setSidebarOffset(0);
       return;
     }
 
     const contentCenter = (minX + maxX) / 2;
-    const desiredOffset = canvasWidth / 2 - contentCenter;
+    const desiredOffset = viewportWidth / 2 - contentCenter;
     const minOffset = -minX;
-    const maxOffset = canvasWidth - maxX;
+    const maxOffset = viewportWidth - maxX;
 
     if (minOffset > maxOffset) {
       setSidebarOffset(0);
@@ -1153,7 +1159,7 @@ const App = ({ mode = "studio" }: AppProps) => {
     }
 
     setSidebarOffset(Math.min(maxOffset, Math.max(minOffset, desiredOffset)));
-  }, [sidebarCollapsed, canvasSize.width, activeTabId, diagramsInActiveTab.length]);
+  }, [sidebarCollapsed, canvasSize.width, canvasZoom, activeTabId, diagramsInActiveTab.length]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -2011,12 +2017,13 @@ const App = ({ mode = "studio" }: AppProps) => {
       }
 
       const { image, width, height } = await svgToImage(svg, selectedDiagram.name);
+      const scale = format === "pdf" ? PDF_DPI / SCREEN_DPI : EXPORT_SCALE;
       const canvas = document.createElement("canvas");
-      canvas.width = Math.round(width * EXPORT_SCALE);
-      canvas.height = Math.round(height * EXPORT_SCALE);
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Canvas rendering failed.");
-      ctx.setTransform(EXPORT_SCALE, 0, 0, EXPORT_SCALE, 0, 0);
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
       ctx.drawImage(image, 0, 0);
@@ -2038,16 +2045,19 @@ const App = ({ mode = "studio" }: AppProps) => {
       const exportDate = new Date();
       const exportLabel = formatExportDate(exportDate);
       const headerHeight = EXPORT_CAPTION_HEIGHT;
+      const pdfScale = PDF_DPI / SCREEN_DPI;
+      const pdfW = Math.round(width * pdfScale);
+      const pdfH = Math.round(height * pdfScale);
       const pdf = new jsPDF({
         orientation: width >= height ? "landscape" : "portrait",
         unit: "px",
-        format: [Math.round(width), Math.round(height + headerHeight)]
+        format: [pdfW, Math.round(pdfH + headerHeight)]
       });
       const pngData = canvas.toDataURL("image/png");
       pdf.setFontSize(12);
       pdf.setTextColor(120);
       pdf.text(exportLabel, 12, 18);
-      pdf.addImage(pngData, "PNG", 0, headerHeight, width, height);
+      pdf.addImage(pngData, "PNG", 0, headerHeight, pdfW, pdfH);
       pdf.save(`${filename}.pdf`);
     } catch (error) {
       console.error(error);
@@ -2110,13 +2120,16 @@ const App = ({ mode = "studio" }: AppProps) => {
       );
       const width = Math.max(1, Math.round(maxX - minX + padding * 2));
       const height = Math.max(1, Math.round(maxY - minY + padding * 2));
+      const pdfScale = PDF_DPI / SCREEN_DPI;
+      const pdfW = Math.round(width * pdfScale);
+      const pdfH = Math.round(height * pdfScale);
 
       const canvas = document.createElement("canvas");
-      canvas.width = Math.round(width * EXPORT_SCALE);
-      canvas.height = Math.round(height * EXPORT_SCALE);
+      canvas.width = pdfW;
+      canvas.height = pdfH;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Canvas rendering failed.");
-      ctx.setTransform(EXPORT_SCALE, 0, 0, EXPORT_SCALE, 0, 0);
+      ctx.setTransform(pdfScale, 0, 0, pdfScale, 0, 0);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
       const pageBg = getCssVar("--bg", "#0b1015");
@@ -2133,12 +2146,12 @@ const App = ({ mode = "studio" }: AppProps) => {
       const pdf = new jsPDF({
         orientation: width >= height ? "landscape" : "portrait",
         unit: "px",
-        format: [width, height + headerHeight]
+        format: [pdfW, Math.round(pdfH + headerHeight)]
       });
       pdf.setFontSize(12);
       pdf.setTextColor(120);
       pdf.text(exportLabel, 12, 18);
-      pdf.addImage(pngData, "PNG", 0, headerHeight, width, height);
+      pdf.addImage(pngData, "PNG", 0, headerHeight, pdfW, pdfH);
 
       pdf.save(`${fileBase}.pdf`);
     } catch (error) {
