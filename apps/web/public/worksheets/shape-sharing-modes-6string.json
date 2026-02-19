@@ -1,0 +1,21 @@
+{
+  "id": "worksheet:shape-sharing-modes-6string",
+  "title": "Shape sharing – Modes (6-string)",
+  "sourceRef": "shape sharing (3).pdf",
+  "items": [
+    { "name": "5th string root G major", "keyId": "default:key:g", "scaleId": "default:scale:major-ionian", "positionId": "default:position:position-1", "config": { "strings": 6 } },
+    { "name": "5th string root A Dorian", "keyId": "default:key:a", "scaleId": "default:mode:dorian", "positionId": "default:position:position-1", "config": { "strings": 6 } },
+    { "name": "B Phrygian", "keyId": "default:key:b", "scaleId": "default:mode:phrygian", "positionId": "default:position:position-1", "config": { "strings": 6 } },
+    { "name": "C Lydian", "keyId": "default:key:c", "scaleId": "default:mode:lydian", "positionId": "default:position:position-1", "config": { "strings": 6 } },
+    { "name": "D Mixolydian", "keyId": "default:key:d", "scaleId": "default:mode:mixolydian", "positionId": "default:position:position-1", "config": { "strings": 6 } },
+    { "name": "E Natural Minor", "keyId": "default:key:e", "scaleId": "default:scale:natural-minor", "positionId": "default:position:position-1", "config": { "strings": 6 } },
+    { "name": "F# Locrian", "keyId": "default:key:f-sharp", "scaleId": "default:mode:locrian", "positionId": "default:position:position-1", "config": { "strings": 6 } },
+    { "name": "6th string root D Mixolydian", "keyId": "default:key:d", "scaleId": "default:mode:mixolydian", "positionId": "default:position:position-1", "config": { "strings": 6 } },
+    { "name": "6th string root E Natural Minor", "keyId": "default:key:e", "scaleId": "default:scale:natural-minor", "positionId": "default:position:position-1", "config": { "strings": 6 } },
+    { "name": "6th string root F# Locrian", "keyId": "default:key:f-sharp", "scaleId": "default:mode:locrian", "positionId": "default:position:position-1", "config": { "strings": 6 } },
+    { "name": "G major", "keyId": "default:key:g", "scaleId": "default:scale:major-ionian", "positionId": "default:position:position-1", "config": { "strings": 6 } },
+    { "name": "A Dorian", "keyId": "default:key:a", "scaleId": "default:mode:dorian", "positionId": "default:position:position-1", "config": { "strings": 6 } },
+    { "name": "B Phrygian", "keyId": "default:key:b", "scaleId": "default:mode:phrygian", "positionId": "default:position:position-1", "config": { "strings": 6 } },
+    { "name": "C Lydian", "keyId": "default:key:c", "scaleId": "default:mode:lydian", "positionId": "default:position:position-1", "config": { "strings": 6 } }
+  ]
+}

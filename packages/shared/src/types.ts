@@ -74,3 +74,22 @@ export type LibraryItem = {
   intervals?: number[] | null;
   description?: string | null;
 };
+
+/** One diagram in a worksheet (1:1 with a canvas diagram when rendered). */
+export type WorksheetItem = {
+  name: string;
+  keyId?: string;
+  scaleId?: string;
+  positionId?: string;
+  notes?: Note[];
+  /** Optional config overrides, e.g. strings, frets. */
+  config?: Partial<NeckConfig>;
+};
+
+/** Worksheet: 1:1 list of diagram definitions from a PDF or exercise list. */
+export type Worksheet = {
+  id: string;
+  title: string;
+  sourceRef?: string;
+  items: WorksheetItem[];
+};

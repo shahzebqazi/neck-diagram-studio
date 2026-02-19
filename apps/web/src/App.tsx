@@ -7,7 +7,9 @@ import type {
   Note,
   ProjectData,
   ProjectRecord,
-  ProjectTab
+  ProjectTab,
+  Worksheet,
+  WorksheetItem
 } from "@shared/types";
 import NeckDiagramView from "./components/NeckDiagram";
 import {
@@ -65,6 +67,7 @@ const SIDEBAR_STATE_STORAGE_KEY = "neck-diagram:sidebar-collapsed";
 const PAGE_DATE_STORAGE_KEY = "neck-diagram:page-date";
 const DELETE_WARNING_STORAGE_KEY = "neck-diagram:delete-warning";
 const THEME_STORAGE_KEY = "neck-diagram:theme";
+const WORKSHEETS_STORAGE_KEY = "neck-diagram:worksheets";
 const THEMES = [
   {
     id: "jaffa-cake",
@@ -446,6 +449,28 @@ const App = ({ mode = "studio" }: AppProps) => {
     instrument: true,
     settings: true
   });
+  const [currentWorksheet, setCurrentWorksheet] = useState<Worksheet | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = localStorage.getItem(WORKSHEETS_STORAGE_KEY);
+      if (!stored) return null;
+      const parsed = JSON.parse(stored) as unknown;
+      if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as Worksheet).items))
+        return null;
+      const w = parsed as Worksheet;
+      return {
+        id: w.id ?? `worksheet:${crypto.randomUUID()}`,
+        title: typeof w.title === "string" ? w.title : "Untitled",
+        sourceRef: w.sourceRef,
+        items: Array.isArray(w.items) ? w.items : []
+      };
+    } catch {
+      return null;
+    }
+  });
+  const [worksheetError, setWorksheetError] = useState<string | null>(null);
+  const [worksheetPasteInput, setWorksheetPasteInput] = useState("");
+  const worksheetFileInputRef = useRef<HTMLInputElement | null>(null);
   const migratedProjectRef = useRef<string | null>(null);
   const projectRef = useRef<ProjectRecord | null>(null);
   const activeTabIdRef = useRef<string | null>(null);
@@ -1483,6 +1508,134 @@ const App = ({ mode = "studio" }: AppProps) => {
         activeTabId: targetTabId
       };
     });
+  };
+
+  const setWorksheetFromJson = (json: string) => {
+    setWorksheetError(null);
+    try {
+      const parsed = JSON.parse(json) as unknown;
+      if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as Worksheet).items)) {
+        setWorksheetError("Invalid worksheet: must have title and items array.");
+        return;
+      }
+      const w = parsed as Worksheet;
+      const id = (w as { id?: string }).id ?? `worksheet:${crypto.randomUUID()}`;
+      const title = typeof w.title === "string" ? w.title : "Untitled Worksheet";
+      const items = Array.isArray(w.items)
+        ? w.items.filter(
+            (i): i is WorksheetItem =>
+              i != null && typeof i === "object" && typeof (i as WorksheetItem).name === "string"
+          )
+        : [];
+      const next = { id, title, sourceRef: w.sourceRef, items };
+      setCurrentWorksheet(next);
+      try {
+        localStorage.setItem(WORKSHEETS_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+    } catch {
+      setWorksheetError("Invalid JSON.");
+    }
+  };
+
+  const handleLoadBundledWorksheet = async (path: string) => {
+    setWorksheetError(null);
+    const base = (typeof import.meta !== "undefined" && import.meta.env?.BASE_URL) || "/";
+    const url = path.startsWith("/") ? `${base.replace(/\/$/, "")}${path}` : path;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.statusText);
+      const text = await res.text();
+      setWorksheetFromJson(text);
+    } catch (e) {
+      setWorksheetError(e instanceof Error ? e.message : "Failed to load worksheet.");
+    }
+  };
+
+  const handleRenderWorksheetToCanvas = () => {
+    if (!project) return;
+    if (!currentWorksheet || currentWorksheet.items.length === 0) {
+      setWorksheetError("Add at least one item to the worksheet.");
+      return;
+    }
+    setWorksheetError(null);
+    setSelectionTarget("diagram");
+    const tabName =
+      currentWorksheet.title.trim().length > 0
+        ? currentWorksheet.title.trim()
+        : `Worksheet ${(project.data.tabs?.length ?? 0) + 1}`;
+    const newTab = createDefaultTab(tabName);
+    const nextTabs = [...(project.data.tabs ?? []), newTab];
+    const targetTabId = newTab.id;
+    const diagramsForTab: NeckDiagram[] = [];
+    const gridDiagrams = diagramsForTab.filter(isGridDiagram);
+    const gridForTile = gridDiagrams.map(toTilingDiagram);
+    const defaultTileSize = {
+      width: DEFAULT_DIAGRAM_SIZE.width,
+      height: DEFAULT_DIAGRAM_SIZE.height + EXPORT_CAPTION_HEIGHT
+    };
+    const placed: NeckDiagram[] = [];
+    for (const item of currentWorksheet.items) {
+      const baseConfig = { ...DEFAULT_NECK_CONFIG, ...item.config };
+      const tuning =
+        baseConfig.tuning && baseConfig.tuning.length > 0
+          ? baseConfig.tuning
+          : getStandardTuning(baseConfig.strings);
+      const config = {
+        ...baseConfig,
+        tuning: normalizeTuning(baseConfig.strings, tuning)
+      };
+      const position = suggestTile(
+        [...gridForTile, ...placed.map(toTilingDiagram)],
+        canvasSize,
+        defaultTileSize,
+        TILE_GAP
+      );
+      const positionName = resolveLibraryItem(item.positionId, positionOptions)?.name;
+      const positionPreset = getPositionPreset(positionName);
+      const nextFrets = positionPreset?.minFrets
+        ? Math.max(config.frets, positionPreset.minFrets)
+        : config.frets;
+      const diagram = createNeckDiagram({
+        x: position.x,
+        y: position.y,
+        name: item.name,
+        tabId: targetTabId,
+        layoutMode: gridForTile.length === 0 && placed.length === 0 ? "float" : "grid",
+        config: { ...config, frets: nextFrets },
+        keyId: item.keyId,
+        scaleId: item.scaleId,
+        positionId: item.positionId,
+        labelMode: defaultLabelMode
+      });
+      const notes =
+        item.notes && item.notes.length > 0
+          ? item.notes.map((n) => ({ ...n, id: n.id || crypto.randomUUID() }))
+          : buildDiagramNotes(diagram, item.keyId, item.scaleId, item.positionId, libraryIndex);
+      placed.push({ ...diagram, notes });
+    }
+    updateProjectData((data) => ({
+      ...data,
+      tabs: nextTabs,
+      diagrams: [...data.diagrams, ...placed],
+      selectedDiagramId: placed[placed.length - 1]?.id ?? data.selectedDiagramId,
+      activeTabId: targetTabId
+    }));
+    const pageTitle =
+      currentWorksheet.title.trim().length > 0
+        ? currentWorksheet.title.trim()
+        : DEFAULT_PROJECT_TITLE;
+    setTitleInput(pageTitle);
+    setProject((prev) =>
+      prev
+        ? {
+            ...prev,
+            title: pageTitle,
+            updatedAt: new Date().toISOString()
+          }
+        : prev
+    );
   };
 
   const togglePanel = (panel: keyof typeof panelOpen) => {
@@ -2640,9 +2793,147 @@ const App = ({ mode = "studio" }: AppProps) => {
               </button>
             </div>
             <div className={`panel-body${panelOpen.worksheets ? "" : " is-collapsed"}`}>
-              <p className="muted" style={{ margin: 0, fontSize: "13px" }}>
-                Worksheet content coming soon.
-              </p>
+              <div className="worksheet-controls">
+                <p className="muted" style={{ marginBottom: 8, fontSize: "13px" }}>
+                  Load a bundled worksheet or paste JSON.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div>
+                    <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>
+                      Bundled worksheets
+                    </label>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      <button
+                        type="button"
+                        className="button button-secondary"
+                        onClick={() =>
+                          handleLoadBundledWorksheet("/worksheets/shape-sharing-modes-6string.json")
+                        }
+                      >
+                        Shape sharing (6-string)
+                      </button>
+                      <button
+                        type="button"
+                        className="button button-secondary"
+                        onClick={() =>
+                          handleLoadBundledWorksheet(
+                            "/worksheets/8string-major-minor-sweep-arpeggios.json"
+                          )
+                        }
+                      >
+                        8-string sweep arpeggios
+                      </button>
+                      <button
+                        type="button"
+                        className="button button-secondary"
+                        onClick={() =>
+                          handleLoadBundledWorksheet(
+                            "/worksheets/8string-root-A-harmonic-minor-modes.json"
+                          )
+                        }
+                      >
+                        A Harmonic Minor &amp; modes
+                      </button>
+                    </div>
+                  </div>
+                  <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>
+                    Paste worksheet JSON
+                  </label>
+                  <textarea
+                    className="input"
+                    rows={4}
+                    placeholder='{"title": "...", "items": [{"name": "..."}]}'
+                    value={worksheetPasteInput}
+                    onChange={(e) => setWorksheetPasteInput(e.target.value)}
+                    style={{ width: "100%", resize: "vertical", fontFamily: "monospace" }}
+                  />
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="button button-primary"
+                      onClick={() => setWorksheetFromJson(worksheetPasteInput)}
+                    >
+                      Set as current worksheet
+                    </button>
+                    <label style={{ display: "flex", alignItems: "center" }}>
+                      <input
+                        ref={worksheetFileInputRef}
+                        type="file"
+                        accept=".json,application/json"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const text = reader.result;
+                            if (typeof text === "string") setWorksheetFromJson(text);
+                          };
+                          reader.readAsText(file);
+                          e.target.value = "";
+                        }}
+                      />
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className="button button-secondary"
+                        onClick={() => worksheetFileInputRef.current?.click()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            worksheetFileInputRef.current?.click();
+                          }
+                        }}
+                      >
+                        Load JSON file
+                      </span>
+                    </label>
+                  </div>
+                </div>
+                {worksheetError && (
+                  <p className="muted" style={{ marginTop: 8, color: "var(--note-root)", fontSize: 12 }}>
+                    {worksheetError}
+                  </p>
+                )}
+                {currentWorksheet && (
+                  <div style={{ marginTop: 12 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
+                      {currentWorksheet.title}
+                    </p>
+                    {currentWorksheet.sourceRef && (
+                      <p className="muted" style={{ margin: "2px 0 0", fontSize: 11 }}>
+                        {currentWorksheet.sourceRef}
+                      </p>
+                    )}
+                    <ul
+                      style={{
+                        margin: "8px 0 0",
+                        paddingLeft: 18,
+                        fontSize: 12,
+                        maxHeight: 120,
+                        overflowY: "auto"
+                      }}
+                    >
+                      {currentWorksheet.items.map((item, i) => (
+                        <li key={`${item.name}-${i}`}>{item.name}</li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      className="button button-primary"
+                      style={{ marginTop: 10, width: "100%" }}
+                      onClick={handleRenderWorksheetToCanvas}
+                    >
+                      Render diagrams on canvas
+                    </button>
+                  </div>
+                )}
+                {!currentWorksheet && !worksheetError && (
+                  <p className="muted" style={{ marginTop: 8, fontSize: 12 }}>
+                    Load or paste a worksheet to see items and render.
+                  </p>
+                )}
+              </div>
             </div>
           </section>
           <section className="panel">

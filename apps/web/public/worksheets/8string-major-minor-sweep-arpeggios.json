@@ -1,0 +1,13 @@
+{
+  "id": "worksheet:8string-sweep-arpeggios",
+  "title": "8 String Major and Minor Arpeggio Sweep Patterns",
+  "sourceRef": "8 string major and minor sweep shapes.pdf (Rusty Cooley Music)",
+  "items": [
+    { "name": "A Minor 2nd Inversion 51b3", "keyId": "default:key:a", "scaleId": "default:scale:natural-minor", "positionId": "default:position:position-2", "config": { "strings": 8 } },
+    { "name": "A Minor Root Inversion 1b35", "keyId": "default:key:a", "scaleId": "default:scale:natural-minor", "positionId": "default:position:position-1", "config": { "strings": 8 } },
+    { "name": "A Minor 1st Inversion b351", "keyId": "default:key:a", "scaleId": "default:scale:natural-minor", "positionId": "default:position:position-1", "config": { "strings": 8 } },
+    { "name": "C Major Root Inversion 135", "keyId": "default:key:c", "scaleId": "default:scale:major-ionian", "positionId": "default:position:position-1", "config": { "strings": 8 } },
+    { "name": "C Major 1st Inversion 351", "keyId": "default:key:c", "scaleId": "default:scale:major-ionian", "positionId": "default:position:position-1", "config": { "strings": 8 } },
+    { "name": "C Major 2nd Inversion 513", "keyId": "default:key:c", "scaleId": "default:scale:major-ionian", "positionId": "default:position:position-2", "config": { "strings": 8 } }
+  ]
+}

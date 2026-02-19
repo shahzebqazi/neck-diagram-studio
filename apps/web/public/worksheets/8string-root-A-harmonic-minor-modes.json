@@ -1,0 +1,15 @@
+{
+  "id": "worksheet:8string-A-harmonic-minor-modes",
+  "title": "8 String Root A Harmonic Minor and Modes",
+  "sourceRef": "8 string root A harmonic Minor.pdf (Rusty Cooley Music 2026)",
+  "items": [
+    { "name": "A Harmonic Minor (full fretboard)", "keyId": "default:key:a", "scaleId": "default:scale:harmonic-minor", "positionId": "default:position:whole-neck", "config": { "strings": 8, "frets": 24 } },
+    { "name": "G# Altered bb7", "keyId": "default:key:g-sharp", "scaleId": "default:scale:harmonic-minor", "positionId": "default:position:position-1", "config": { "strings": 8 } },
+    { "name": "D Dorian #4", "keyId": "default:key:d", "scaleId": "default:mode:dorian", "positionId": "default:position:position-1", "config": { "strings": 8 } },
+    { "name": "A Harmonic Minor (position III–IX)", "keyId": "default:key:a", "scaleId": "default:scale:harmonic-minor", "positionId": "default:position:position-1", "config": { "strings": 8 } },
+    { "name": "E Phrygian Dominant", "keyId": "default:key:e", "scaleId": "default:scale:harmonic-minor", "positionId": "default:position:position-1", "config": { "strings": 8 } },
+    { "name": "B Locrian Natural 6", "keyId": "default:key:b", "scaleId": "default:mode:locrian", "positionId": "default:position:position-1", "config": { "strings": 8 } },
+    { "name": "C Lydian #2", "keyId": "default:key:c", "scaleId": "default:mode:lydian", "positionId": "default:position:position-1", "config": { "strings": 8 } },
+    { "name": "C Major #5", "keyId": "default:key:c", "scaleId": "default:scale:major-ionian", "positionId": "default:position:position-1", "config": { "strings": 8 } }
+  ]
+}
