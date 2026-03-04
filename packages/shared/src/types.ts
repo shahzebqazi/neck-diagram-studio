@@ -12,6 +12,7 @@ export type Note = {
 export type NeckConfig = {
   strings: number;
   frets: number;
+  startFret?: number;
   capo: number;
   tuning: string[];
   displayStandardTuning?: boolean;

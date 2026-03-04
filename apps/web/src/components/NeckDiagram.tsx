@@ -125,7 +125,10 @@ const NeckDiagram = ({
     FRET_NUMBER_MIN_FONT,
     Math.min(FRET_NUMBER_MAX_FONT, Math.round(fretNumberHeight * 0.85))
   );
-  const fretboardWidth = Math.max(1, diagram.width - openStringPad - rightPad);
+  const startFret = config.startFret ?? 0;
+  const hasStartFret = startFret > 0;
+  const leftPad = hasStartFret ? Math.max(16, noteRadius * 1.4) : openStringPad;
+  const fretboardWidth = Math.max(1, diagram.width - leftPad - rightPad);
   const stringHeight = Math.max(1, diagram.height - verticalPad * 2);
   const rawAngle = config.multiscaleAngle ?? 0;
   const multiscaleAngle = Number.isFinite(rawAngle) ? rawAngle : 0;
@@ -133,19 +136,30 @@ const NeckDiagram = ({
   const angleSlope = Math.tan(angleRadians);
   const angleOffset = angleSlope * (diagram.height / 2);
 
-  const fretPositions = useMemo(
-    () =>
-      getFretPositions(config.frets, fretboardWidth).map((position) => position + openStringPad),
-    [config.frets, fretboardWidth, openStringPad]
-  );
+  const fretPositions = useMemo(() => {
+    if (startFret <= 0) {
+      return getFretPositions(config.frets, fretboardWidth).map((p) => p + leftPad);
+    }
+    const refWidth = 10000;
+    const allPos = getFretPositions(config.frets, refWidth);
+    const cropStart = allPos[startFret] ?? 0;
+    const cropEnd = allPos[config.frets] ?? refWidth;
+    const range = cropEnd - cropStart;
+    if (range <= 0) return [leftPad];
+    return allPos
+      .slice(startFret, config.frets + 1)
+      .map((p) => ((p - cropStart) / range) * fretboardWidth + leftPad);
+  }, [config.frets, startFret, fretboardWidth, leftPad]);
+
   const fretNumberLabels = useMemo(() => {
-    if (!config.showFretNumbers) return [];
+    if (!config.showFretNumbers && !hasStartFret) return [];
     if (fretPositions.length < 2) return [];
     const minSpacing = Math.min(
       ...fretPositions.slice(1).map((position, index) => position - fretPositions[index])
     );
+    const maxFretNum = config.frets;
     const maxLabel =
-      config.fretNumberStyle === "roman" ? toRoman(config.frets) : `${config.frets}`;
+      config.fretNumberStyle === "roman" ? toRoman(maxFretNum) : `${maxFretNum}`;
     const charCount = Math.max(1, maxLabel.length);
     const charWidth = fretNumberFontSize * 0.6;
     const labelWidth =
@@ -153,9 +167,13 @@ const NeckDiagram = ({
     const stride =
       minSpacing > 0 ? Math.max(1, Math.ceil(labelWidth / minSpacing)) : 1;
     return fretPositions.slice(1).flatMap((position, index) => {
-      const fretNumber = index + 1;
-      if (!IMPORTANT_FRETS.has(fretNumber) && stride > 1 && fretNumber % stride !== 0) {
-        return [];
+      const fretNumber = startFret + index + 1;
+      if (!config.showFretNumbers && hasStartFret) {
+        if (index !== 0) return [];
+      } else {
+        if (!IMPORTANT_FRETS.has(fretNumber) && stride > 1 && fretNumber % stride !== 0) {
+          return [];
+        }
       }
       return [
         {
@@ -164,7 +182,7 @@ const NeckDiagram = ({
         }
       ];
     });
-  }, [config.showFretNumbers, config.fretNumberStyle, config.frets, fretPositions, fretNumberFontSize]);
+  }, [config.showFretNumbers, config.fretNumberStyle, config.frets, startFret, hasStartFret, fretPositions, fretNumberFontSize]);
 
   const stringPositions = useMemo(
     () => getStringPositions(config.strings, stringHeight).map((y) => y + verticalPad),
@@ -187,7 +205,7 @@ const NeckDiagram = ({
         2
       : diagram.height / 2;
   const inlayOffset = Math.max(8, noteRadius * 1.5);
-  const fretNumberExportHeight = config.showFretNumbers ? fretNumberHeight + FRET_NUMBER_MARGIN : 0;
+  const fretNumberExportHeight = (config.showFretNumbers || hasStartFret) ? fretNumberHeight + FRET_NUMBER_MARGIN : 0;
 
   const rootIndex = noteNameToIndex(rootKey ?? null);
   const scaleSet = useMemo(() => {
@@ -237,10 +255,16 @@ const NeckDiagram = ({
     const point = getLocalPoint(event);
     if (!point) return;
     const adjustedX = point.x - angleSlope * (point.y - diagram.height / 2);
-    const fret =
-      adjustedX < openStringPad
+    let fret: number;
+    if (hasStartFret) {
+      fret = adjustedX < leftPad
+        ? startFret
+        : clamp(findFretAtX(fretPositions, adjustedX) + startFret, startFret, config.frets - 1);
+    } else {
+      fret = adjustedX < leftPad
         ? -1
         : clamp(findFretAtX(fretPositions, adjustedX), 0, config.frets - 1);
+    }
     const spacing =
       config.strings <= 1 ? stringHeight : stringHeight / (config.strings - 1);
     const rawIndex =
@@ -351,7 +375,7 @@ const NeckDiagram = ({
         {fretPositions.map((x, index) => {
           const xTop = x - angleOffset;
           const xBottom = x + angleOffset;
-          const isNut = index === 0;
+          const isNut = index === 0 && !hasStartFret;
           return (
             <line
               key={`fret-${index}`}
@@ -360,16 +384,16 @@ const NeckDiagram = ({
               x2={xBottom}
               y2={diagram.height}
               stroke={isNut ? DIAGRAM_NUT : DIAGRAM_FRET}
-              strokeWidth={isNut ? 3 : 1}
+              strokeWidth={isNut ? 3 : index === 0 && hasStartFret ? 2 : 1}
             />
           );
         })}
 
-        {config.capo > 0 && fretPositions[config.capo] !== undefined ? (
+        {config.capo > 0 && config.capo > startFret && fretPositions[config.capo - startFret] !== undefined ? (
           <line
-            x1={fretPositions[config.capo] - angleOffset}
+            x1={fretPositions[config.capo - startFret] - angleOffset}
             y1={0}
-            x2={fretPositions[config.capo] + angleOffset}
+            x2={fretPositions[config.capo - startFret] + angleOffset}
             y2={diagram.height}
             stroke={DIAGRAM_CAPO}
             strokeWidth={6}
@@ -380,9 +404,10 @@ const NeckDiagram = ({
 
         {config.showInlays !== false
           ? Array.from(INLAY_FRETS).map((fretNumber) => {
-              if (fretNumber > config.frets) return null;
-              const start = fretPositions[fretNumber - 1];
-              const end = fretPositions[fretNumber];
+              if (fretNumber > config.frets || fretNumber <= startFret) return null;
+              const visIdx = fretNumber - startFret;
+              const start = fretPositions[visIdx - 1];
+              const end = fretPositions[visIdx];
               if (start == null || end == null) return null;
               const inlayX = start + (end - start) / 2;
               const fill = DIAGRAM_INLAY;
@@ -415,12 +440,17 @@ const NeckDiagram = ({
               );
             })
           : null}
-        {diagram.notes.map((note) => {
+        {diagram.notes.filter((note) => {
+          if (hasStartFret && note.fret < startFret - 1) return false;
+          return true;
+        }).map((note) => {
           const isOpen = note.fret < 0;
-          const start = isOpen ? 0 : (fretPositions[note.fret] ?? openStringPad);
+          if (hasStartFret && isOpen) return null;
+          const visFret = hasStartFret ? note.fret - startFret : note.fret;
+          const start = isOpen ? 0 : (fretPositions[visFret] ?? leftPad);
           const end = isOpen
-            ? openStringPad
-            : fretPositions[note.fret + 1] ?? (diagram.width + start) / 2;
+            ? leftPad
+            : fretPositions[visFret + 1] ?? (diagram.width + start) / 2;
           const x = start + (end - start) / 2;
           const y = visualStringPositions[note.stringIndex] ?? diagram.height / 2;
           const noteIndex = getNoteIndex(displayTuning, note.stringIndex, note.fret, config.capo);
@@ -461,7 +491,7 @@ const NeckDiagram = ({
             </g>
           );
         })}
-        {config.showFretNumbers ? (
+        {(config.showFretNumbers || hasStartFret) ? (
           <g className="fret-number-layer" pointerEvents="none">
             {fretNumberLabels.map((fret) => (
               <text

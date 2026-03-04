@@ -347,5 +347,127 @@
       "If a change spans multiple areas, coordinate by creating a single owning agent.",
       "Prefer additive changes; minimize large refactors without agreement."
     ]
+  },
+  "ux_ui_design_review": {
+    "date": "2026-03-04",
+    "author": "Auto",
+    "signature": "UX/UI design review incorporated into PRD — Auto",
+    "strengths": [
+      "Theming: six themes with CSS variables and theme swatches in Settings.",
+      "Landing: clear value prop, scroll reveal, hero + features + steps + use cases + CTA; phone-frame visuals and gradient headline on-brand.",
+      "Studio layout: header → toolbar → workspace (sidebar + canvas) is logical.",
+      "ARIA: tabs use role=tablist/tab and aria-selected; sidebar and panels use aria-expanded/aria-label; delete dialog has role=dialog and aria-modal.",
+      "Responsive: 960px breakpoint flips workspace and makes sidebar overlay; landing and docs have breakpoints."
+    ],
+    "consistency_and_polish": [
+      "Docs page uses className 'cta-button primary' and 'cta-button ghost' but .cta-button is not defined in styles.css; Docs CTAs are unstyled. Add .cta-button, .cta-button.primary, .cta-button.ghost (or reuse .lp-btn/.lp-cta) so Docs matches the rest of the site."
+    ],
+    "accessibility": [
+      "Delete modal has role=dialog and aria-modal but no focus trap or return-focus; add focus trap and restore focus to trigger on close.",
+      "Modal has an h4 but no aria-labelledby on the dialog; add aria-labelledby (and optional aria-describedby) pointing at the title.",
+      "Add a single 'Skip to main content' link at the top of the app targeting main canvas or toolbar.",
+      "Confirm when sidebar is collapsed that no focusable node inside it can receive focus (pointer-events and width are already handled)."
+    ],
+    "information_hierarchy_and_empty_states": [
+      "Handle status === 'error' explicitly: show a message and actions (e.g. Start blank project, Retry).",
+      "Empty-state copy: use 'Use Add Neck to add your first diagram' (and optionally one line about tabs/drag).",
+      "Optionally add a minimal loading animation (spinner or bar) to the loading card."
+    ],
+    "navigation_and_wayfinding": [
+      "Add a 'Docs' or 'Help' link in the app header to /docs and optionally 'Home' to /.",
+      "Consider making the header title/sub (e.g. Neck Diagram Studio) a link to / or /docs."
+    ],
+    "header_and_title": [
+      "Add placeholder on the title input when empty (e.g. placeholder='Untitled project').",
+      "Consider softening the subtitle 'Iconoclast Aud.io // Neck Diagram Studio' to a more user-facing line (e.g. 'by Iconoclast Aud.io') while keeping the link."
+    ],
+    "toolbar_and_actions": [
+      "Add aria-label to zoom buttons (e.g. 'Zoom out', 'Reset zoom', 'Zoom in').",
+      "Ensure Import/Export menu items are focusable and have role=menuitem (or use native button/a).",
+      "If keyboard shortcuts are added later, surface them in tooltips (e.g. 'Add neck (N)')."
+    ],
+    "sidebar_and_panels": [
+      "In compact sidebar mode, ensure every icon-only control has an aria-label (and optionally title) that names the panel.",
+      "Consider a one-line hint on the canvas when no diagram is selected: 'Open the sidebar to set key and scale.'"
+    ],
+    "canvas_and_diagrams": [
+      "Add an aria-label to the trash zone when it is used (e.g. 'Drop here to delete').",
+      "Optionally show the selected diagram name in the toolbar or sidebar when one is selected.",
+      "Later: keyboard move (arrow keys) for the selected diagram."
+    ],
+    "modals_and_destructive_actions": [
+      "On delete modal open, focus 'Cancel' (or the first non-destructive focusable element), not 'Delete', so Enter does not confirm by accident.",
+      "Keep 'Delete' as the last focusable element so tab order ends on Cancel for keyboard users."
+    ],
+    "responsive_and_layout": [
+      "Confirm delete modal does not overflow on very narrow viewports (e.g. 320px) and primary/secondary buttons remain tappable.",
+      "Consider minimum touch target size (e.g. 44px) for tab buttons and sidebar toggles on touch devices."
+    ],
+    "small_polish": [
+      "If the Nerd Font fails to load, ensure fallback text or aria-label is present so actions are not icon-only without a label.",
+      "Consider a system monospace fallback earlier in --font-ui for faster first paint if the Nerd Font is slow."
+    ],
+    "prioritized_actions": [
+      { "priority": "high", "item": "Define .cta-button and variants so Docs CTAs are styled consistently." },
+      { "priority": "high", "item": "Handle status === 'error' with a dedicated message and Start blank / Retry." },
+      { "priority": "high", "item": "Delete modal: focus trap, focus Cancel on open, restore focus on close, aria-labelledby on dialog." },
+      { "priority": "medium", "item": "Add Skip to main content and a Docs/Help link in the app header." },
+      { "priority": "medium", "item": "Title input placeholder when empty; zoom buttons aria-label." },
+      { "priority": "medium", "item": "Empty-state copy: 'Use Add Neck to add your first diagram.'" },
+      { "priority": "low", "item": "Loading: subtle animation; modal Cancel as default focus; optional keyboard move for selected diagram." }
+    ]
+  },
+  "frontend_typescript_review": {
+    "date": "2026-03-04",
+    "author": "Auto",
+    "signature": "TypeScript frontend code review incorporated into PRD — Auto",
+    "summary": "Review of apps/web and packages/shared from a TypeScript frontend perspective: architecture, types, state, and maintainability.",
+    "strengths": [
+      "Strict TypeScript (strict: true in tsconfig) and shared types in @shared/types used consistently.",
+      "Core domain types (NeckDiagram, Note, ProjectData, Worksheet, LibraryItem) are well-defined and exported from a single package.",
+      "Pure helpers live in lib/ (projectData, neckMath, tiling, exportUtils) with clear inputs/outputs and test coverage where it exists.",
+      "Router is minimal and explicit (pathname → Landing | Docs | App) with a simple Link component and no heavy framework.",
+      "NeckDiagram is a focused presentational component with explicit props and callback contracts.",
+      "Constants and magic numbers are named (MIN_WIDTH, DRAG_THRESHOLD, PDF_DPI, etc.) and colocated where used.",
+      "Theme and storage keys are centralized; theme id is validated with a type guard (isThemeId)."
+    ],
+    "architecture_and_maintainability": [
+      "App.tsx is ~4000 lines and owns almost all UI state, effects, and handlers; it is the main maintainability risk. PRD quality_tech_debt already calls out refactoring into focused hooks/components.",
+      "Recommend extracting: (1) canvas state and drag/resize/scale logic into a useCanvasInteraction hook, (2) sidebar/panel state and layout into a useSidebar hook, (3) library search and theory selection into a useLibrary hook, (4) export/import flows into a useExportImport hook or small module. Keep App as composition of these.",
+      "Consider a single useAppState reducer (or useReducer + context) for project, status, and title to simplify boot and save flows and make status transitions explicit.",
+      "Router in main.tsx is fine for current scope; if routes grow, consider a small route config array and a single switch/render."
+    ],
+    "types_and_validation": [
+      "Shared types omit scaleLength in some flows (stripScaleLength in projectData); ensure all ingress points (API, localStorage, import) use the same normalization so NeckConfig stays consistent.",
+      "parseProjectPayload and normalizeProjectData do runtime validation but return ProjectData without branded/schema types; consider a small validation layer (e.g. zod) at API and localStorage boundaries and keep types in sync with schemas.",
+      "Worksheet parsing: current inline checks are adequate; for GP/MIDI/Reaper, add explicit schemaVersion/sourceFormat and validate before merging into app state.",
+      "API functions (fetchLastProject, createProject, updateProject, fetchLibrary) use generic fetch and throw on !res.ok; consider parsing response body for error messages and typing the error shape for the UI."
+    ],
+    "state_and_effects": [
+      "Boot flow never sets status to 'error'; on network failure the app falls back to local/blank and always sets 'ready'. Either remove the 'error' status from the type or add an error path with setStatus('error') and a dedicated error UI (Start blank / Retry) as in ux_ui_design_review.",
+      "Many useState calls in App; drag state is correctly split (dragRef for transient pointer state, local state for mode). Preserve this pattern when extracting hooks: refs for transient/event-driven state, useState for UI-reflected state.",
+      "useDebouncedEffect is used for save; ensure cleanup and mount guards (mounted) remain when splitting effects into custom hooks to avoid setState on unmounted component.",
+      "localStorage for theme, sidebar, delete warning, worksheets: initialization from storage is correct; consider a small useStoredState(key, parse, serialize) to reduce repetition and centralize validation."
+    ],
+    "performance_and_bundling": [
+      "React 18 and Vite are appropriate. Lazy loading is not used; if App or Docs/Landing grow, consider React.lazy for route-level code splitting.",
+      "No obvious unnecessary re-renders from context; when splitting App, avoid putting frequently changing state (e.g. canvas zoom, drag) in context that wraps the whole tree. Keep context for coarse-grained values (theme, project id, demo mode).",
+      "jspdf is imported at top level in App; if PDF export is behind a menu, consider dynamic import so initial bundle is smaller."
+    ],
+    "testing_and_tooling": [
+      "Lint script is a placeholder (echo \"(lint)\"); replace with eslint (and optionally eslint-plugin-react-hooks) as in PRD testing/quality_tech_debt.",
+      "Vitest is present; projectData and exportUtils have tests. Add tests for neckMath, tiling, and for boot/error paths once error UI exists.",
+      "No E2E tests in apps/web; consider Playwright or similar for critical flows (load project, add diagram, export) if not already covered elsewhere."
+    ],
+    "suggestions_prioritized": [
+      { "priority": "high", "item": "Refactor App.tsx: extract useCanvasInteraction, useSidebar, useLibrary, and useExportImport (or equivalent) and keep App as composition." },
+      { "priority": "high", "item": "Implement status === 'error' path: setStatus('error') when remote and local fallback both fail; show message and Start blank / Retry actions." },
+      { "priority": "high", "item": "Replace placeholder lint script with real ESLint (and run in CI)." },
+      { "priority": "medium", "item": "Introduce schema validation (e.g. zod) at API and localStorage boundaries; derive TypeScript types from schemas where possible." },
+      { "priority": "medium", "item": "API layer: return or throw typed errors (e.g. { message: string, status: number }) so UI can show server messages or retry logic." },
+      { "priority": "medium", "item": "Consider useStoredState(key, parse, serialize) for theme, sidebar, delete warning, and worksheets to centralize validation and reduce duplication." },
+      { "priority": "low", "item": "Dynamic import for jspdf when user opens PDF export to reduce initial bundle size." },
+      { "priority": "low", "item": "Route-level code splitting with React.lazy for /docs and /app if bundle size becomes an issue." }
+    ]
   }
 }

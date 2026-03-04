@@ -335,13 +335,13 @@ const normalizeNotes = (notes: Note[]) => {
   return Array.from(deduped.values());
 };
 
-const clampNotesToConfig = (notes: Note[], strings: number, frets: number) =>
+const clampNotesToConfig = (notes: Note[], strings: number, frets: number, startFret = 0) =>
   normalizeNotes(
     notes.filter(
       (note) =>
         note.stringIndex >= 0 &&
         note.stringIndex < strings &&
-        note.fret >= -1 &&
+        note.fret >= (startFret > 0 ? startFret : -1) &&
         note.fret < frets
     )
   );
@@ -382,6 +382,12 @@ const getPositionRange = (positionName: string | undefined, frets: number) => {
   return { minFret, maxFret };
 };
 
+const getStartFretForPosition = (positionName: string | undefined): number => {
+  const preset = getPositionPreset(positionName);
+  if (!preset) return 0;
+  return preset.minFret;
+};
+
 const resolveDisplayTuning = (diagram: NeckDiagram) =>
   diagram.config.displayStandardTuning
     ? getStandardTuning(diagram.config.strings)
@@ -399,9 +405,11 @@ const buildScaleNotes = (
   const scaleSet = new Set(scaleIntervals.map((interval) => (rootIndex + interval) % 12));
   const displayTuning = resolveDisplayTuning(diagram);
   const positionRange = getPositionRange(positionName, diagram.config.frets);
+  const sf = diagram.config.startFret ?? 0;
+  const loopStart = sf > 0 ? sf : -1;
   const notes: Note[] = [];
   for (let stringIndex = 0; stringIndex < diagram.config.strings; stringIndex += 1) {
-    for (let fret = -1; fret < diagram.config.frets; fret += 1) {
+    for (let fret = loopStart; fret < diagram.config.frets; fret += 1) {
       const fretValue = fret < 0 ? 0 : fret;
       if (positionRange) {
         if (fretValue < positionRange.minFret || fretValue > positionRange.maxFret) continue;
@@ -1426,6 +1434,11 @@ const App = ({ mode = "studio" }: AppProps) => {
       const nextKeyId = hasKey ? patch.keyId : data.keyId;
       const nextScaleId = hasScale ? patch.scaleId : data.scaleId;
       const nextPositionId = hasPosition ? patch.positionId : data.positionId;
+      const posName = nextPositionId
+        ? (index[nextPositionId]?.name ??
+           resolveLibraryItem(nextPositionId, positionOptions)?.name)
+        : undefined;
+      const nextStartFret = hasPosition ? getStartFretForPosition(posName) : undefined;
       return {
         ...data,
         keyId: nextKeyId,
@@ -1436,7 +1449,10 @@ const App = ({ mode = "studio" }: AppProps) => {
             ...diagram,
             keyId: nextKeyId,
             scaleId: nextScaleId,
-            positionId: nextPositionId
+            positionId: nextPositionId,
+            config: nextStartFret !== undefined
+              ? { ...diagram.config, startFret: nextStartFret }
+              : diagram.config
           };
           return {
             ...updated,
@@ -2564,14 +2580,16 @@ const App = ({ mode = "studio" }: AppProps) => {
     updateDiagram(selectedDiagram.id, (diagram) => {
       const hasStrings = Object.prototype.hasOwnProperty.call(patch, "strings");
       const hasFrets = Object.prototype.hasOwnProperty.call(patch, "frets");
+      const hasStartFret = Object.prototype.hasOwnProperty.call(patch, "startFret");
       const nextStrings = hasStrings ? patch.strings ?? diagram.config.strings : diagram.config.strings;
       const nextFrets = hasFrets ? patch.frets ?? diagram.config.frets : diagram.config.frets;
+      const nextStartFret = hasStartFret ? patch.startFret ?? 0 : diagram.config.startFret ?? 0;
       const nextTuning = patch.tuning
         ? normalizeTuning(nextStrings, patch.tuning)
         : normalizeTuning(nextStrings, diagram.config.tuning);
       const nextNotes =
-        hasStrings || hasFrets
-          ? clampNotesToConfig(diagram.notes, nextStrings, nextFrets)
+        hasStrings || hasFrets || hasStartFret
+          ? clampNotesToConfig(diagram.notes, nextStrings, nextFrets, nextStartFret)
           : diagram.notes;
       return {
         ...diagram,
@@ -3621,7 +3639,13 @@ const App = ({ mode = "studio" }: AppProps) => {
                           setLibraryIndex(nextIndex);
                         }
                         updateDiagram(selectedDiagram.id, (diagram) => {
-                          const updated = { ...diagram, positionId: nextId };
+                          const posName = nextItem?.name;
+                          const nextStartFret = getStartFretForPosition(posName);
+                          const updated = {
+                            ...diagram,
+                            positionId: nextId,
+                            config: { ...diagram.config, startFret: nextStartFret }
+                          };
                           return {
                             ...updated,
                             notes: buildDiagramNotes(
@@ -3668,6 +3692,20 @@ const App = ({ mode = "studio" }: AppProps) => {
                         const raw = Number(event.target.value);
                         const clamped = Math.max(4, Math.min(27, raw || 12));
                         handleConfigChange({ frets: clamped });
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Start Fret
+                    <input
+                      type="number"
+                      min={0}
+                      max={Math.max(0, selectedDiagram.config.frets - 1)}
+                      value={selectedDiagram.config.startFret ?? 0}
+                      onChange={(event) => {
+                        const raw = Number(event.target.value);
+                        const clamped = Math.max(0, Math.min(selectedDiagram.config.frets - 1, raw || 0));
+                        handleConfigChange({ startFret: clamped });
                       }}
                     />
                   </label>
