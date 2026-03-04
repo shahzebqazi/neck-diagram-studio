@@ -6,19 +6,22 @@ const FEATURES = [
     title: "Scale + interval labeling",
     description:
       "Label every note by key name or interval. Switch between views to build a clear reference for any scale or mode.",
-    image: "/screenshots/studio-demo-canvas.png"
+    gif: "/screenshots/shape-sharing-themes.gif",
+    still: "/screenshots/shape-sharing/oled-blackout.png"
   },
   {
     title: "Full studio workspace",
     description:
       "A sidebar with theory controls, a zoomable canvas, and configurable diagrams — all in one place.",
-    image: "/screenshots/studio-with-sidebar.png"
+    gif: "/screenshots/sidebar-themes.gif",
+    still: "/screenshots/sidebar/oled-blackout.png"
   },
   {
     title: "Worksheets + presets",
     description:
       "Load bundled worksheets for shape sharing, sweep arpeggios, and harmonic minor modes — or build your own.",
-    image: "/screenshots/studio-dorian-flow.png"
+    gif: "/screenshots/harmonic-minor-themes.gif",
+    still: "/screenshots/harmonic-minor/oled-blackout.png"
   }
 ];
 
@@ -87,6 +90,14 @@ const LandingPage = () => {
   const ctaReveal = useReveal();
   const featureReveals = [feature0, feature1, feature2];
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = "oled-blackout";
+    return () => {
+      const stored = localStorage.getItem("neck-diagram:theme");
+      if (stored) document.documentElement.dataset.theme = stored;
+    };
+  }, []);
+
   return (
     <div className="lp">
       <nav className="lp-nav">
@@ -136,10 +147,10 @@ const LandingPage = () => {
             </div>
           </div>
           <div className="lp-hero-visual">
-            <div className="lp-glass">
+            <div className="lp-phone">
               <img
-                src="/screenshots/studio-overview-50pct.png"
-                alt="Neck Diagram Studio canvas showing E Minor Pentatonic and Picking Drill diagrams"
+                src="/screenshots/sweep-arpeggios-themes.gif"
+                alt="Neck Diagram Studio — 8-string sweep arpeggios cycling through all themes"
                 draggable={false}
               />
             </div>
@@ -162,9 +173,9 @@ const LandingPage = () => {
                 <p>{feature.description}</p>
               </div>
               <div className="lp-feature-visual">
-                <div className="lp-glass">
+                <div className="lp-phone">
                   <img
-                    src={feature.image}
+                    src={feature.gif}
                     alt={feature.title}
                     draggable={false}
                     loading="lazy"
