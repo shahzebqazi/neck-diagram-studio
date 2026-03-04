@@ -36,8 +36,11 @@ const BASE_LIBRARY: LibrarySeedItem[] = [
   { type: "position", name: "Position 3", intervals: [] },
   { type: "position", name: "Position 4", intervals: [] },
   { type: "position", name: "Position 5", intervals: [] },
+  { type: "position", name: "Position 6", intervals: [] },
+  { type: "position", name: "Position 7", intervals: [] },
   { type: "position", name: "1-12", intervals: [] },
   { type: "position", name: "12-24", intervals: [] },
+  { type: "position", name: "12-27", intervals: [] },
   { type: "position", name: "Whole Neck", intervals: [] }
 ];
 

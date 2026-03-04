@@ -1,0 +1,14 @@
+{
+  "id": "worksheet:6string-d-mixolydian-7-positions",
+  "title": "D Mixolydian – 7 Positions (6-string)",
+  "sourceRef": "6 string d mixolydian.pdf",
+  "items": [
+    { "name": "D Mixolydian – Position 1", "keyId": "default:key:d", "scaleId": "default:mode:mixolydian", "positionId": "default:position:position-1", "config": { "strings": 6, "frets": 24 } },
+    { "name": "D Mixolydian – Position 2", "keyId": "default:key:d", "scaleId": "default:mode:mixolydian", "positionId": "default:position:position-2", "config": { "strings": 6, "frets": 24 } },
+    { "name": "D Mixolydian – Position 3", "keyId": "default:key:d", "scaleId": "default:mode:mixolydian", "positionId": "default:position:position-3", "config": { "strings": 6, "frets": 24 } },
+    { "name": "D Mixolydian – Position 4", "keyId": "default:key:d", "scaleId": "default:mode:mixolydian", "positionId": "default:position:position-4", "config": { "strings": 6, "frets": 24 } },
+    { "name": "D Mixolydian – Position 5", "keyId": "default:key:d", "scaleId": "default:mode:mixolydian", "positionId": "default:position:position-5", "config": { "strings": 6, "frets": 24 } },
+    { "name": "D Mixolydian – Position 6", "keyId": "default:key:d", "scaleId": "default:mode:mixolydian", "positionId": "default:position:position-6", "config": { "strings": 6, "frets": 27 } },
+    { "name": "D Mixolydian – Position 7", "keyId": "default:key:d", "scaleId": "default:mode:mixolydian", "positionId": "default:position:position-7", "config": { "strings": 6, "frets": 27 } }
+  ]
+}

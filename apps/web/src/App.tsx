@@ -18,7 +18,12 @@ import {
   createNeckDiagram,
   DEFAULT_NECK_CONFIG,
   DEFAULT_DIAGRAM_SIZE,
+  DEFAULT_TUNING_4,
+  DEFAULT_TUNING_5,
+  DEFAULT_TUNING_6,
+  DEFAULT_TUNING_7,
   DEFAULT_TUNING_8,
+  DEFAULT_TUNING_9,
   getStandardTuning
 } from "./state/defaults";
 import { suggestTile } from "./lib/tiling";
@@ -113,9 +118,12 @@ const POSITION_PRESETS: Record<
   "position 3": { minFret: 10, maxFret: 14, minFrets: 24 },
   "position 4": { minFret: 15, maxFret: 19, minFrets: 24 },
   "position 5": { minFret: 20, maxFret: 23, minFrets: 24 },
+  "position 6": { minFret: 21, maxFret: 24, minFrets: 27 },
+  "position 7": { minFret: 24, maxFret: 26, minFrets: 27 },
   "1-12": { minFret: 0, maxFret: 11, minFrets: 12 },
   "12-24": { minFret: 12, maxFret: 23, minFrets: 24 },
-  "whole neck": { minFret: 0, maxFret: 23, minFrets: 24 }
+  "12-27": { minFret: 12, maxFret: 26, minFrets: 27 },
+  "whole neck": { minFret: 0, maxFret: 26, minFrets: 27 }
 };
 const ICONS = {
   add: "\uf067",
@@ -126,7 +134,6 @@ const ICONS = {
   upload: "\uf093",
   trash: "\uf1f8",
   chevron: "\uf078",
-  worksheets: "\uf718",
   theory: "\uf02d",
   diagram: "\uf0e8",
   instrument: "\uf001",
@@ -196,12 +203,39 @@ const boxesOverlap = (a: NeckDiagram, b: NeckDiagram, gap = TILE_GAP) =>
     a.y >= b.y + getDiagramExportHeight(b) + gap
   );
 
-const EIGHT_STRING_PRESETS = [
-  { label: "F# Standard", tuning: DEFAULT_TUNING_8 },
-  { label: "Half Step Down", tuning: ["F", "A#", "D#", "G#", "C#", "F#", "A#", "D#"] },
-  { label: "Drop E", tuning: ["E", "B", "E", "A", "D", "G", "B", "E"] },
-  { label: "E Standard", tuning: ["E", "A", "D", "G", "C", "F", "A", "D"] }
-] as const;
+const TUNING_PRESETS: Record<number, ReadonlyArray<{ label: string; tuning: readonly string[] }>> = {
+  4: [
+    { label: "Standard", tuning: DEFAULT_TUNING_4 },
+    { label: "Drop D", tuning: ["D", "A", "D", "G"] },
+    { label: "DADG", tuning: ["D", "A", "D", "G"] },
+  ],
+  5: [
+    { label: "Standard", tuning: DEFAULT_TUNING_5 },
+    { label: "Drop A", tuning: ["A", "E", "A", "D", "G"] },
+  ],
+  6: [
+    { label: "E Standard", tuning: DEFAULT_TUNING_6 },
+    { label: "Drop D", tuning: ["D", "A", "D", "G", "B", "E"] },
+    { label: "Half Step Down", tuning: ["D#", "G#", "C#", "F#", "A#", "D#"] },
+    { label: "D Standard", tuning: ["D", "G", "C", "F", "A", "D"] },
+    { label: "Open G", tuning: ["D", "G", "D", "G", "B", "D"] },
+  ],
+  7: [
+    { label: "B Standard", tuning: DEFAULT_TUNING_7 },
+    { label: "Drop A", tuning: ["A", "E", "A", "D", "G", "B", "E"] },
+    { label: "A Standard", tuning: ["A", "D", "G", "C", "F", "A", "D"] },
+  ],
+  8: [
+    { label: "F# Standard", tuning: DEFAULT_TUNING_8 },
+    { label: "Half Step Down", tuning: ["F", "A#", "D#", "G#", "C#", "F#", "A#", "D#"] },
+    { label: "Drop E", tuning: ["E", "B", "E", "A", "D", "G", "B", "E"] },
+    { label: "E Standard", tuning: ["E", "A", "D", "G", "C", "F", "A", "D"] },
+  ],
+  9: [
+    { label: "C# Standard", tuning: DEFAULT_TUNING_9 },
+    { label: "Drop B", tuning: ["B", "F#", "B", "E", "A", "D", "G", "B", "E"] },
+  ],
+};
 
 const SVG_EXPORT_VARS: Array<{ name: string; fallback: string }> = [
   { name: "--diagram-bg", fallback: "#000000" },
@@ -443,7 +477,6 @@ const App = ({ mode = "studio" }: AppProps) => {
     return stored && isThemeId(stored) ? stored : DEFAULT_THEME;
   });
   const [panelOpen, setPanelOpen] = useState({
-    worksheets: true,
     theory: true,
     diagram: true,
     instrument: true,
@@ -471,6 +504,13 @@ const App = ({ mode = "studio" }: AppProps) => {
   const [worksheetError, setWorksheetError] = useState<string | null>(null);
   const [worksheetPasteInput, setWorksheetPasteInput] = useState("");
   const worksheetFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [genKeys, setGenKeys] = useState<Set<string>>(new Set());
+  const [genScales, setGenScales] = useState<Set<string>>(new Set());
+  const [genPositions, setGenPositions] = useState<Set<string>>(new Set());
+  const [genStrings, setGenStrings] = useState(6);
+  const [genFrets, setGenFrets] = useState(12);
+  const [genTarget, setGenTarget] = useState<"new-tab" | "current-tab">("new-tab");
+  const [theorySubOpen, setTheorySubOpen] = useState({ generate: false, worksheets: false });
   const migratedProjectRef = useRef<string | null>(null);
   const projectRef = useRef<ProjectRecord | null>(null);
   const activeTabIdRef = useRef<string | null>(null);
@@ -1638,6 +1678,108 @@ const App = ({ mode = "studio" }: AppProps) => {
     );
   };
 
+  const genCount = genKeys.size * Math.max(genScales.size, 1) * Math.max(genPositions.size, 1);
+
+  const handleBulkGenerate = () => {
+    if (!project) return;
+    if (genKeys.size === 0) return;
+    const selectedScaleIds = genScales.size > 0
+      ? Array.from(genScales)
+      : scaleOptions.slice(0, 1).map((s) => s.id);
+    const selectedPositionIds = genPositions.size > 0
+      ? Array.from(genPositions)
+      : [undefined as string | undefined];
+
+    const tabName = (() => {
+      const keyNames = Array.from(genKeys)
+        .map((id) => resolveLibraryItem(id, keyOptions)?.name)
+        .filter(Boolean);
+      const scaleNames = Array.from(genScales)
+        .map((id) => resolveLibraryItem(id, scaleOptions)?.name)
+        .filter(Boolean);
+      if (keyNames.length === 1 && scaleNames.length === 1)
+        return `${keyNames[0]} ${scaleNames[0]}`;
+      if (keyNames.length <= 3)
+        return keyNames.join(", ");
+      return `Generated (${genCount} diagrams)`;
+    })();
+
+    const useNewTab = genTarget === "new-tab";
+    let nextTabs = project.data.tabs ?? [];
+    let targetTabId = activeTabId ?? project.data.activeTabId ?? nextTabs[0]?.id;
+    if (useNewTab || !targetTabId) {
+      const newTab = createDefaultTab(tabName);
+      nextTabs = [...nextTabs, newTab];
+      targetTabId = newTab.id;
+    }
+
+    const existingInTab = useNewTab
+      ? []
+      : project.data.diagrams.filter((d) => d.tabId === targetTabId);
+    const gridForTile = existingInTab.filter(isGridDiagram).map(toTilingDiagram);
+    const defaultTileSize = {
+      width: DEFAULT_DIAGRAM_SIZE.width,
+      height: DEFAULT_DIAGRAM_SIZE.height + EXPORT_CAPTION_HEIGHT
+    };
+
+    const placed: NeckDiagram[] = [];
+    for (const keyId of Array.from(genKeys)) {
+      for (const scaleId of selectedScaleIds) {
+        for (const positionId of selectedPositionIds) {
+          const keyName = resolveLibraryItem(keyId, keyOptions)?.name ?? "";
+          const scaleName = resolveLibraryItem(scaleId, scaleOptions)?.name ?? "";
+          const posName = positionId
+            ? resolveLibraryItem(positionId, positionOptions)?.name ?? ""
+            : "";
+          const name = [keyName, scaleName, posName].filter(Boolean).join(" - ");
+
+          const positionName = positionId
+            ? resolveLibraryItem(positionId, positionOptions)?.name
+            : undefined;
+          const positionPreset = getPositionPreset(positionName);
+          const baseFrets = positionPreset?.minFrets
+            ? Math.max(genFrets, positionPreset.minFrets)
+            : genFrets;
+          const tuning = getStandardTuning(genStrings);
+          const config = {
+            ...DEFAULT_NECK_CONFIG,
+            strings: genStrings,
+            frets: baseFrets,
+            tuning: normalizeTuning(genStrings, tuning)
+          };
+          const position = suggestTile(
+            [...gridForTile, ...placed.map(toTilingDiagram)],
+            canvasSize,
+            defaultTileSize,
+            TILE_GAP
+          );
+          const diagram = createNeckDiagram({
+            x: position.x,
+            y: position.y,
+            name,
+            tabId: targetTabId,
+            layoutMode: gridForTile.length === 0 && placed.length === 0 ? "float" : "grid",
+            config,
+            keyId,
+            scaleId,
+            positionId,
+            labelMode: defaultLabelMode
+          });
+          const notes = buildDiagramNotes(diagram, keyId, scaleId, positionId, libraryIndex);
+          placed.push({ ...diagram, notes });
+        }
+      }
+    }
+
+    updateProjectData((data) => ({
+      ...data,
+      tabs: nextTabs,
+      diagrams: [...data.diagrams, ...placed],
+      selectedDiagramId: placed[placed.length - 1]?.id ?? data.selectedDiagramId,
+      activeTabId: targetTabId
+    }));
+  };
+
   const togglePanel = (panel: keyof typeof panelOpen) => {
     setPanelOpen((prev) => ({ ...prev, [panel]: !prev[panel] }));
   };
@@ -2770,175 +2912,6 @@ const App = ({ mode = "studio" }: AppProps) => {
           <section className="panel">
             <div
               className="panel-header"
-              onClick={() => openPanelFromCompact("worksheets")}
-              role={isSidebarCompact ? "button" : undefined}
-              tabIndex={isSidebarCompact ? 0 : undefined}
-            >
-              <h3 title="Worksheets">
-                <span className="panel-icon nf-icon" aria-hidden="true">
-                  {ICONS.worksheets}
-                </span>
-                <span className="panel-title">Worksheets</span>
-              </h3>
-              <button
-                className="panel-toggle"
-                type="button"
-                onClick={() => togglePanel("worksheets")}
-                aria-expanded={panelOpen.worksheets}
-                aria-label={panelOpen.worksheets ? "Collapse Worksheets" : "Expand Worksheets"}
-              >
-                <span className="nf-icon" aria-hidden="true">
-                  {ICONS.chevron}
-                </span>
-              </button>
-            </div>
-            <div className={`panel-body${panelOpen.worksheets ? "" : " is-collapsed"}`}>
-              <div className="worksheet-controls">
-                <p className="muted" style={{ marginBottom: 8, fontSize: "13px" }}>
-                  Load a bundled worksheet or paste JSON.
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div>
-                    <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>
-                      Bundled worksheets
-                    </label>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      <button
-                        type="button"
-                        className="button button-secondary"
-                        onClick={() =>
-                          handleLoadBundledWorksheet("/worksheets/shape-sharing-modes-6string.json")
-                        }
-                      >
-                        Shape sharing (6-string)
-                      </button>
-                      <button
-                        type="button"
-                        className="button button-secondary"
-                        onClick={() =>
-                          handleLoadBundledWorksheet(
-                            "/worksheets/8string-major-minor-sweep-arpeggios.json"
-                          )
-                        }
-                      >
-                        8-string sweep arpeggios
-                      </button>
-                      <button
-                        type="button"
-                        className="button button-secondary"
-                        onClick={() =>
-                          handleLoadBundledWorksheet(
-                            "/worksheets/8string-root-A-harmonic-minor-modes.json"
-                          )
-                        }
-                      >
-                        A Harmonic Minor &amp; modes
-                      </button>
-                    </div>
-                  </div>
-                  <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>
-                    Paste worksheet JSON
-                  </label>
-                  <textarea
-                    className="input"
-                    rows={4}
-                    placeholder='{"title": "...", "items": [{"name": "..."}]}'
-                    value={worksheetPasteInput}
-                    onChange={(e) => setWorksheetPasteInput(e.target.value)}
-                    style={{ width: "100%", resize: "vertical", fontFamily: "monospace" }}
-                  />
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button
-                      type="button"
-                      className="button button-primary"
-                      onClick={() => setWorksheetFromJson(worksheetPasteInput)}
-                    >
-                      Set as current worksheet
-                    </button>
-                    <label style={{ display: "flex", alignItems: "center" }}>
-                      <input
-                        ref={worksheetFileInputRef}
-                        type="file"
-                        accept=".json,application/json"
-                        style={{ display: "none" }}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            const text = reader.result;
-                            if (typeof text === "string") setWorksheetFromJson(text);
-                          };
-                          reader.readAsText(file);
-                          e.target.value = "";
-                        }}
-                      />
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        className="button button-secondary"
-                        onClick={() => worksheetFileInputRef.current?.click()}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            worksheetFileInputRef.current?.click();
-                          }
-                        }}
-                      >
-                        Load JSON file
-                      </span>
-                    </label>
-                  </div>
-                </div>
-                {worksheetError && (
-                  <p className="muted" style={{ marginTop: 8, color: "var(--note-root)", fontSize: 12 }}>
-                    {worksheetError}
-                  </p>
-                )}
-                {currentWorksheet && (
-                  <div style={{ marginTop: 12 }}>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
-                      {currentWorksheet.title}
-                    </p>
-                    {currentWorksheet.sourceRef && (
-                      <p className="muted" style={{ margin: "2px 0 0", fontSize: 11 }}>
-                        {currentWorksheet.sourceRef}
-                      </p>
-                    )}
-                    <ul
-                      style={{
-                        margin: "8px 0 0",
-                        paddingLeft: 18,
-                        fontSize: 12,
-                        maxHeight: 120,
-                        overflowY: "auto"
-                      }}
-                    >
-                      {currentWorksheet.items.map((item, i) => (
-                        <li key={`${item.name}-${i}`}>{item.name}</li>
-                      ))}
-                    </ul>
-                    <button
-                      type="button"
-                      className="button button-primary"
-                      style={{ marginTop: 10, width: "100%" }}
-                      onClick={handleRenderWorksheetToCanvas}
-                    >
-                      Render diagrams on canvas
-                    </button>
-                  </div>
-                )}
-                {!currentWorksheet && !worksheetError && (
-                  <p className="muted" style={{ marginTop: 8, fontSize: 12 }}>
-                    Load or paste a worksheet to see items and render.
-                  </p>
-                )}
-              </div>
-            </div>
-          </section>
-          <section className="panel">
-            <div
-              className="panel-header"
               onClick={() => openPanelFromCompact("theory")}
               role={isSidebarCompact ? "button" : undefined}
               tabIndex={isSidebarCompact ? 0 : undefined}
@@ -3080,6 +3053,413 @@ const App = ({ mode = "studio" }: AppProps) => {
                       <span className="tag">{item.type}</span>
                     </button>
                   ))
+                )}
+              </div>
+              <div
+                className="panel-subhead"
+                role="button"
+                tabIndex={0}
+                style={{ cursor: "pointer", userSelect: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                onClick={() => setTheorySubOpen((p) => ({ ...p, generate: !p.generate }))}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTheorySubOpen((p) => ({ ...p, generate: !p.generate })); } }}
+              >
+                <span>Generate Diagrams</span>
+                <span className="nf-icon" aria-hidden="true" style={{ fontSize: 10, transform: theorySubOpen.generate ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.15s" }}>
+                  {ICONS.chevron}
+                </span>
+              </div>
+              <div style={{ display: theorySubOpen.generate ? "flex" : "none", flexDirection: "column", gap: 8 }}>
+                <div>
+                  <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>
+                    Quick Presets
+                  </label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      style={{ fontSize: 11, padding: "3px 8px" }}
+                      onClick={() => {
+                        setGenKeys(new Set(keyOptions.map((k) => k.id)));
+                        setGenScales(new Set(scaleOptions.filter((s) => s.name === "Major (Ionian)").map((s) => s.id)));
+                        setGenPositions(new Set());
+                        setGenStrings(6);
+                        setGenFrets(12);
+                      }}
+                    >
+                      All Keys - Major (6-str)
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      style={{ fontSize: 11, padding: "3px 8px" }}
+                      onClick={() => {
+                        setGenKeys(new Set(keyOptions.map((k) => k.id)));
+                        setGenScales(new Set(scaleOptions.filter((s) => s.name === "Natural Minor").map((s) => s.id)));
+                        setGenPositions(new Set());
+                        setGenStrings(6);
+                        setGenFrets(12);
+                      }}
+                    >
+                      All Keys - Minor (6-str)
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      style={{ fontSize: 11, padding: "3px 8px" }}
+                      onClick={() => {
+                        setGenKeys(new Set(keyOptions.map((k) => k.id)));
+                        const modeIds = scaleOptions.filter((s) => s.type === "mode").map((s) => s.id);
+                        setGenScales(new Set(modeIds));
+                        setGenPositions(new Set());
+                        setGenStrings(6);
+                        setGenFrets(12);
+                      }}
+                    >
+                      All Keys - All Modes (6-str)
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      style={{ fontSize: 11, padding: "3px 8px" }}
+                      onClick={() => {
+                        setGenKeys(new Set(keyOptions.map((k) => k.id)));
+                        setGenScales(new Set(scaleOptions.filter((s) => s.name === "Minor Pentatonic").map((s) => s.id)));
+                        setGenPositions(new Set(positionOptions.filter((p) => /^Position \d+$/.test(p.name)).map((p) => p.id)));
+                        setGenStrings(6);
+                        setGenFrets(24);
+                      }}
+                    >
+                      All Keys - Pentatonic 5 Pos (6-str)
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      style={{ fontSize: 11, padding: "3px 8px" }}
+                      onClick={() => {
+                        setGenKeys(new Set(keyOptions.map((k) => k.id)));
+                        setGenScales(new Set(scaleOptions.filter((s) => s.name === "Major (Ionian)").map((s) => s.id)));
+                        setGenPositions(new Set());
+                        setGenStrings(7);
+                        setGenFrets(12);
+                      }}
+                    >
+                      All Keys - Major (7-str)
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      style={{ fontSize: 11, padding: "3px 8px" }}
+                      onClick={() => {
+                        setGenKeys(new Set(keyOptions.map((k) => k.id)));
+                        const modeIds = scaleOptions.filter((s) => s.type === "mode").map((s) => s.id);
+                        setGenScales(new Set(modeIds));
+                        setGenPositions(new Set());
+                        setGenStrings(7);
+                        setGenFrets(12);
+                      }}
+                    >
+                      All Keys - All Modes (7-str)
+                    </button>
+                  </div>
+                </div>
+                <label style={{ fontSize: 12 }}>
+                  Keys
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+                    <button
+                      type="button"
+                      className={`button ${genKeys.size === keyOptions.length ? "button-primary" : "button-secondary"}`}
+                      style={{ fontSize: 11, padding: "2px 6px" }}
+                      onClick={() => {
+                        if (genKeys.size === keyOptions.length) {
+                          setGenKeys(new Set());
+                        } else {
+                          setGenKeys(new Set(keyOptions.map((k) => k.id)));
+                        }
+                      }}
+                    >
+                      All
+                    </button>
+                    {keyOptions.map((key) => (
+                      <button
+                        key={key.id}
+                        type="button"
+                        className={`button ${genKeys.has(key.id) ? "button-primary" : "button-secondary"}`}
+                        style={{ fontSize: 11, padding: "2px 6px" }}
+                        onClick={() => {
+                          setGenKeys((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(key.id)) next.delete(key.id);
+                            else next.add(key.id);
+                            return next;
+                          });
+                        }}
+                      >
+                        {key.name}
+                      </button>
+                    ))}
+                  </div>
+                </label>
+                <label style={{ fontSize: 12 }}>
+                  Scales / Modes
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+                    <button
+                      type="button"
+                      className={`button ${genScales.size === scaleOptions.length ? "button-primary" : "button-secondary"}`}
+                      style={{ fontSize: 11, padding: "2px 6px" }}
+                      onClick={() => {
+                        if (genScales.size === scaleOptions.length) {
+                          setGenScales(new Set());
+                        } else {
+                          setGenScales(new Set(scaleOptions.map((s) => s.id)));
+                        }
+                      }}
+                    >
+                      All
+                    </button>
+                    {scaleOptions.map((scale) => (
+                      <button
+                        key={scale.id}
+                        type="button"
+                        className={`button ${genScales.has(scale.id) ? "button-primary" : "button-secondary"}`}
+                        style={{ fontSize: 11, padding: "2px 6px" }}
+                        onClick={() => {
+                          setGenScales((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(scale.id)) next.delete(scale.id);
+                            else next.add(scale.id);
+                            return next;
+                          });
+                        }}
+                      >
+                        {scale.name}
+                      </button>
+                    ))}
+                  </div>
+                </label>
+                <label style={{ fontSize: 12 }}>
+                  Positions
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+                    <button
+                      type="button"
+                      className={`button ${genPositions.size === positionOptions.length ? "button-primary" : "button-secondary"}`}
+                      style={{ fontSize: 11, padding: "2px 6px" }}
+                      onClick={() => {
+                        if (genPositions.size === positionOptions.length) {
+                          setGenPositions(new Set());
+                        } else {
+                          setGenPositions(new Set(positionOptions.map((p) => p.id)));
+                        }
+                      }}
+                    >
+                      All
+                    </button>
+                    {positionOptions.map((pos) => (
+                      <button
+                        key={pos.id}
+                        type="button"
+                        className={`button ${genPositions.has(pos.id) ? "button-primary" : "button-secondary"}`}
+                        style={{ fontSize: 11, padding: "2px 6px" }}
+                        onClick={() => {
+                          setGenPositions((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(pos.id)) next.delete(pos.id);
+                            else next.add(pos.id);
+                            return next;
+                          });
+                        }}
+                      >
+                        {pos.name}
+                      </button>
+                    ))}
+                  </div>
+                </label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <label style={{ fontSize: 12, flex: 1 }}>
+                    Strings
+                    <input
+                      type="number"
+                      min={4}
+                      max={9}
+                      value={genStrings}
+                      onChange={(e) => setGenStrings(Math.max(4, Math.min(9, Number(e.target.value) || 6)))}
+                    />
+                  </label>
+                  <label style={{ fontSize: 12, flex: 1 }}>
+                    Frets
+                    <input
+                      type="number"
+                      min={4}
+                      max={27}
+                      value={genFrets}
+                      onChange={(e) => setGenFrets(Math.max(4, Math.min(27, Number(e.target.value) || 12)))}
+                    />
+                  </label>
+                </div>
+                <label style={{ fontSize: 12 }}>
+                  Target
+                  <select
+                    value={genTarget}
+                    onChange={(e) => setGenTarget(e.target.value as "new-tab" | "current-tab")}
+                  >
+                    <option value="new-tab">New Tab</option>
+                    <option value="current-tab">Current Tab</option>
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="button button-primary"
+                  style={{ width: "100%" }}
+                  disabled={genKeys.size === 0}
+                  onClick={handleBulkGenerate}
+                >
+                  {genKeys.size === 0
+                    ? "Select at least one key"
+                    : `Generate ${genCount} diagram${genCount === 1 ? "" : "s"}`}
+                </button>
+              </div>
+              <div
+                className="panel-subhead"
+                role="button"
+                tabIndex={0}
+                style={{ cursor: "pointer", userSelect: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                onClick={() => setTheorySubOpen((p) => ({ ...p, worksheets: !p.worksheets }))}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTheorySubOpen((p) => ({ ...p, worksheets: !p.worksheets })); } }}
+              >
+                <span>Worksheets</span>
+                <span className="nf-icon" aria-hidden="true" style={{ fontSize: 10, transform: theorySubOpen.worksheets ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.15s" }}>
+                  {ICONS.chevron}
+                </span>
+              </div>
+              <div className="worksheet-controls" style={{ display: theorySubOpen.worksheets ? "block" : "none" }}>
+                <p className="muted" style={{ marginBottom: 8, fontSize: "13px" }}>
+                  Load a bundled worksheet or paste JSON.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div>
+                    <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>
+                      Bundled worksheets
+                    </label>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {[
+                        { label: "G Major 7 Pos", path: "/worksheets/6string-g-major-7-positions.json" },
+                        { label: "A Dorian 7 Pos", path: "/worksheets/6string-a-dorian-7-positions.json" },
+                        { label: "B Phrygian 7 Pos", path: "/worksheets/6string-b-phrygian-7-positions.json" },
+                        { label: "C Lydian 7 Pos", path: "/worksheets/6string-c-lydian-7-positions.json" },
+                        { label: "D Mixolydian 7 Pos", path: "/worksheets/6string-d-mixolydian-7-positions.json" },
+                        { label: "E Nat. Minor 7 Pos", path: "/worksheets/6string-e-natural-minor-7-positions.json" },
+                        { label: "F# Locrian 7 Pos", path: "/worksheets/6string-f-sharp-locrian-7-positions.json" },
+                        { label: "Shape sharing (6-str)", path: "/worksheets/shape-sharing-modes-6string.json" },
+                        { label: "8-str sweep arpeggios", path: "/worksheets/8string-major-minor-sweep-arpeggios.json" },
+                        { label: "A Harm. Minor & modes", path: "/worksheets/8string-root-A-harmonic-minor-modes.json" },
+                      ].map((ws) => (
+                        <button
+                          key={ws.path}
+                          type="button"
+                          className="button button-secondary"
+                          style={{ fontSize: 11 }}
+                          onClick={() => handleLoadBundledWorksheet(ws.path)}
+                        >
+                          {ws.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label style={{ fontSize: 12, display: "block", marginBottom: 4 }}>
+                    Paste worksheet JSON
+                  </label>
+                  <textarea
+                    className="input"
+                    rows={4}
+                    placeholder='{"title": "...", "items": [{"name": "..."}]}'
+                    value={worksheetPasteInput}
+                    onChange={(e) => setWorksheetPasteInput(e.target.value)}
+                    style={{ width: "100%", resize: "vertical", fontFamily: "monospace" }}
+                  />
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="button button-primary"
+                      onClick={() => setWorksheetFromJson(worksheetPasteInput)}
+                    >
+                      Set as current worksheet
+                    </button>
+                    <label style={{ display: "flex", alignItems: "center" }}>
+                      <input
+                        ref={worksheetFileInputRef}
+                        type="file"
+                        accept=".json,application/json"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const text = reader.result;
+                            if (typeof text === "string") setWorksheetFromJson(text);
+                          };
+                          reader.readAsText(file);
+                          e.target.value = "";
+                        }}
+                      />
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className="button button-secondary"
+                        onClick={() => worksheetFileInputRef.current?.click()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            worksheetFileInputRef.current?.click();
+                          }
+                        }}
+                      >
+                        Load JSON file
+                      </span>
+                    </label>
+                  </div>
+                </div>
+                {worksheetError && (
+                  <p className="muted" style={{ marginTop: 8, color: "var(--note-root)", fontSize: 12 }}>
+                    {worksheetError}
+                  </p>
+                )}
+                {currentWorksheet && (
+                  <div style={{ marginTop: 12 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
+                      {currentWorksheet.title}
+                    </p>
+                    {currentWorksheet.sourceRef && (
+                      <p className="muted" style={{ margin: "2px 0 0", fontSize: 11 }}>
+                        {currentWorksheet.sourceRef}
+                      </p>
+                    )}
+                    <ul
+                      style={{
+                        margin: "8px 0 0",
+                        paddingLeft: 18,
+                        fontSize: 12,
+                        maxHeight: 120,
+                        overflowY: "auto"
+                      }}
+                    >
+                      {currentWorksheet.items.map((item, i) => (
+                        <li key={`${item.name}-${i}`}>{item.name}</li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      className="button button-primary"
+                      style={{ marginTop: 10, width: "100%" }}
+                      onClick={handleRenderWorksheetToCanvas}
+                    >
+                      Render diagrams on canvas
+                    </button>
+                  </div>
+                )}
+                {!currentWorksheet && !worksheetError && (
+                  <p className="muted" style={{ marginTop: 8, fontSize: 12 }}>
+                    Load or paste a worksheet to see items and render.
+                  </p>
                 )}
               </div>
             </div>
@@ -3295,9 +3675,11 @@ const App = ({ mode = "studio" }: AppProps) => {
                       min={4}
                       max={27}
                       value={selectedDiagram.config.frets}
-                      onChange={(event) =>
-                        handleConfigChange({ frets: Number(event.target.value) || 12 })
-                      }
+                      onChange={(event) => {
+                        const raw = Number(event.target.value);
+                        const clamped = Math.max(4, Math.min(27, raw || 12));
+                        handleConfigChange({ frets: clamped });
+                      }}
                     />
                   </label>
                   <label className="checkbox full">
@@ -3371,12 +3753,14 @@ const App = ({ mode = "studio" }: AppProps) => {
                     Strings
                     <input
                       type="number"
-                      min={3}
-                      max={10}
+                      min={4}
+                      max={9}
                       value={selectedDiagram.config.strings}
-                      onChange={(event) =>
-                        handleConfigChange({ strings: Number(event.target.value) || 6 })
-                      }
+                      onChange={(event) => {
+                        const raw = Number(event.target.value);
+                        const clamped = Math.max(4, Math.min(9, raw || 6));
+                        handleConfigChange({ strings: clamped });
+                      }}
                     />
                   </label>
                   <label className="full">
@@ -3390,11 +3774,11 @@ const App = ({ mode = "studio" }: AppProps) => {
                       }
                     />
                   </label>
-                  {selectedDiagram.config.strings === 8 ? (
+                  {TUNING_PRESETS[selectedDiagram.config.strings] ? (
                     <div className="tuning-presets full">
-                      <span>8-String Presets</span>
+                      <span>{selectedDiagram.config.strings}-String Presets</span>
                       <div className="preset-buttons">
-                        {EIGHT_STRING_PRESETS.map((preset) => (
+                        {TUNING_PRESETS[selectedDiagram.config.strings].map((preset) => (
                           <button
                             key={preset.label}
                             className="preset-button"

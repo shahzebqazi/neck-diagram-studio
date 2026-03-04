@@ -1,0 +1,14 @@
+{
+  "id": "worksheet:6string-g-major-7-positions",
+  "title": "G Major – 7 Positions (6-string)",
+  "sourceRef": "G MAJOR 7 POSITIONS.pdf",
+  "items": [
+    { "name": "G Major – Position 1", "keyId": "default:key:g", "scaleId": "default:scale:major-ionian", "positionId": "default:position:position-1", "config": { "strings": 6, "frets": 24 } },
+    { "name": "G Major – Position 2", "keyId": "default:key:g", "scaleId": "default:scale:major-ionian", "positionId": "default:position:position-2", "config": { "strings": 6, "frets": 24 } },
+    { "name": "G Major – Position 3", "keyId": "default:key:g", "scaleId": "default:scale:major-ionian", "positionId": "default:position:position-3", "config": { "strings": 6, "frets": 24 } },
+    { "name": "G Major – Position 4", "keyId": "default:key:g", "scaleId": "default:scale:major-ionian", "positionId": "default:position:position-4", "config": { "strings": 6, "frets": 24 } },
+    { "name": "G Major – Position 5", "keyId": "default:key:g", "scaleId": "default:scale:major-ionian", "positionId": "default:position:position-5", "config": { "strings": 6, "frets": 24 } },
+    { "name": "G Major – Position 6", "keyId": "default:key:g", "scaleId": "default:scale:major-ionian", "positionId": "default:position:position-6", "config": { "strings": 6, "frets": 27 } },
+    { "name": "G Major – Position 7", "keyId": "default:key:g", "scaleId": "default:scale:major-ionian", "positionId": "default:position:position-7", "config": { "strings": 6, "frets": 27 } }
+  ]
+}

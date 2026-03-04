@@ -1,0 +1,14 @@
+{
+  "id": "worksheet:6string-a-dorian-7-positions",
+  "title": "A Dorian – 7 Positions (6-string)",
+  "sourceRef": "a dorian minor.pdf",
+  "items": [
+    { "name": "A Dorian – Position 1", "keyId": "default:key:a", "scaleId": "default:mode:dorian", "positionId": "default:position:position-1", "config": { "strings": 6, "frets": 24 } },
+    { "name": "A Dorian – Position 2", "keyId": "default:key:a", "scaleId": "default:mode:dorian", "positionId": "default:position:position-2", "config": { "strings": 6, "frets": 24 } },
+    { "name": "A Dorian – Position 3", "keyId": "default:key:a", "scaleId": "default:mode:dorian", "positionId": "default:position:position-3", "config": { "strings": 6, "frets": 24 } },
+    { "name": "A Dorian – Position 4", "keyId": "default:key:a", "scaleId": "default:mode:dorian", "positionId": "default:position:position-4", "config": { "strings": 6, "frets": 24 } },
+    { "name": "A Dorian – Position 5", "keyId": "default:key:a", "scaleId": "default:mode:dorian", "positionId": "default:position:position-5", "config": { "strings": 6, "frets": 24 } },
+    { "name": "A Dorian – Position 6", "keyId": "default:key:a", "scaleId": "default:mode:dorian", "positionId": "default:position:position-6", "config": { "strings": 6, "frets": 27 } },
+    { "name": "A Dorian – Position 7", "keyId": "default:key:a", "scaleId": "default:mode:dorian", "positionId": "default:position:position-7", "config": { "strings": 6, "frets": 27 } }
+  ]
+}

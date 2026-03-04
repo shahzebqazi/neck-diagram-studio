@@ -1,0 +1,14 @@
+{
+  "id": "worksheet:6string-c-lydian-7-positions",
+  "title": "C Lydian – 7 Positions (6-string)",
+  "sourceRef": "clydian.pdf",
+  "items": [
+    { "name": "C Lydian – Position 1", "keyId": "default:key:c", "scaleId": "default:mode:lydian", "positionId": "default:position:position-1", "config": { "strings": 6, "frets": 24 } },
+    { "name": "C Lydian – Position 2", "keyId": "default:key:c", "scaleId": "default:mode:lydian", "positionId": "default:position:position-2", "config": { "strings": 6, "frets": 24 } },
+    { "name": "C Lydian – Position 3", "keyId": "default:key:c", "scaleId": "default:mode:lydian", "positionId": "default:position:position-3", "config": { "strings": 6, "frets": 24 } },
+    { "name": "C Lydian – Position 4", "keyId": "default:key:c", "scaleId": "default:mode:lydian", "positionId": "default:position:position-4", "config": { "strings": 6, "frets": 24 } },
+    { "name": "C Lydian – Position 5", "keyId": "default:key:c", "scaleId": "default:mode:lydian", "positionId": "default:position:position-5", "config": { "strings": 6, "frets": 24 } },
+    { "name": "C Lydian – Position 6", "keyId": "default:key:c", "scaleId": "default:mode:lydian", "positionId": "default:position:position-6", "config": { "strings": 6, "frets": 27 } },
+    { "name": "C Lydian – Position 7", "keyId": "default:key:c", "scaleId": "default:mode:lydian", "positionId": "default:position:position-7", "config": { "strings": 6, "frets": 27 } }
+  ]
+}

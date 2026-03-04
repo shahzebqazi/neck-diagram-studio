@@ -1,0 +1,14 @@
+{
+  "id": "worksheet:6string-f-sharp-locrian-7-positions",
+  "title": "F# Locrian – 7 Positions (6-string)",
+  "sourceRef": "7 positions of F# Locrian minor.pdf",
+  "items": [
+    { "name": "F# Locrian – Position 1", "keyId": "default:key:f-sharp", "scaleId": "default:mode:locrian", "positionId": "default:position:position-1", "config": { "strings": 6, "frets": 24 } },
+    { "name": "F# Locrian – Position 2", "keyId": "default:key:f-sharp", "scaleId": "default:mode:locrian", "positionId": "default:position:position-2", "config": { "strings": 6, "frets": 24 } },
+    { "name": "F# Locrian – Position 3", "keyId": "default:key:f-sharp", "scaleId": "default:mode:locrian", "positionId": "default:position:position-3", "config": { "strings": 6, "frets": 24 } },
+    { "name": "F# Locrian – Position 4", "keyId": "default:key:f-sharp", "scaleId": "default:mode:locrian", "positionId": "default:position:position-4", "config": { "strings": 6, "frets": 24 } },
+    { "name": "F# Locrian – Position 5", "keyId": "default:key:f-sharp", "scaleId": "default:mode:locrian", "positionId": "default:position:position-5", "config": { "strings": 6, "frets": 24 } },
+    { "name": "F# Locrian – Position 6", "keyId": "default:key:f-sharp", "scaleId": "default:mode:locrian", "positionId": "default:position:position-6", "config": { "strings": 6, "frets": 27 } },
+    { "name": "F# Locrian – Position 7", "keyId": "default:key:f-sharp", "scaleId": "default:mode:locrian", "positionId": "default:position:position-7", "config": { "strings": 6, "frets": 27 } }
+  ]
+}

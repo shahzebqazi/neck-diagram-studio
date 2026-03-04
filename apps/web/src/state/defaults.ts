@@ -1,16 +1,25 @@
 import type { NeckConfig, NeckDiagram, Note, ProjectData } from "@shared/types";
 
+export const DEFAULT_TUNING_4 = ["E", "A", "D", "G"];
+export const DEFAULT_TUNING_5 = ["B", "E", "A", "D", "G"];
 export const DEFAULT_TUNING_6 = ["E", "A", "D", "G", "B", "E"];
 export const DEFAULT_TUNING_7 = ["B", "E", "A", "D", "G", "B", "E"];
 export const DEFAULT_TUNING_8 = ["F#", "B", "E", "A", "D", "G", "B", "E"];
+export const DEFAULT_TUNING_9 = ["C#", "F#", "B", "E", "A", "D", "G", "B", "E"];
 
 export const getStandardTuning = (strings: number) => {
   const base =
-    strings >= 8
-      ? DEFAULT_TUNING_8
-      : strings === 7
-        ? DEFAULT_TUNING_7
-        : DEFAULT_TUNING_6;
+    strings >= 9
+      ? DEFAULT_TUNING_9
+      : strings >= 8
+        ? DEFAULT_TUNING_8
+        : strings === 7
+          ? DEFAULT_TUNING_7
+          : strings === 5
+            ? DEFAULT_TUNING_5
+            : strings === 4
+              ? DEFAULT_TUNING_4
+              : DEFAULT_TUNING_6;
   if (strings <= base.length) return base.slice(0, strings);
   const normalized = [...base];
   while (normalized.length < strings) {
@@ -20,10 +29,10 @@ export const getStandardTuning = (strings: number) => {
 };
 
 export const DEFAULT_NECK_CONFIG: NeckConfig = {
-  strings: 8,
+  strings: 6,
   frets: 12,
   capo: 0,
-  tuning: DEFAULT_TUNING_8,
+  tuning: DEFAULT_TUNING_6,
   displayStandardTuning: false,
   fretNumberStyle: "arabic",
   showFretNumbers: false,
