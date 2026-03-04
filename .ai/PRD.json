@@ -25,6 +25,9 @@
     "Full music theory engine beyond basic interval/key calculations."
   ],
   "known_issues": [
+    "Bug: API .env path uses process.cwd() + '../../.env'; when running from repo root (e.g. npm run dev) cwd is repo root so path resolves outside repo and .env is never loaded. Fix: resolve relative to file (e.g. import.meta.url / __dirname) in apps/api/src/index.ts and apps/api/src/seed.ts.",
+    "Bug: PATCH /api/projects/:id builds update payload as Record<string, unknown> and passes to Prisma; type-unsafe and allows extra keys. Fix: build explicit update object with only title, data, lastOpenedAt (Date) and type as Prisma ProjectUpdateInput.",
+    "Design: GET /api/projects/last mutates lastOpenedAt in DB; GET should be side-effect free. Consider moving touch to a separate endpoint or to the existing PATCH save flow.",
     "Bug: PNG/PDF export does not prompt for a filename; users cannot name the file before download.",
     "Bug: PNG/PDF export renders black output in some cases; exports must preserve the diagram colors.",
     "Bug: Resizing the browser viewport does not keep diagrams centered; diagrams drift to the right after resize.",
@@ -37,7 +40,9 @@
     "Verified: Changing key/scale/position in Diagram panel regenerates notes via buildDiagramNotes.",
     "Verified: Mode dropdown is clickable and functional. Runtime tested 2026-03-04.",
     "Fixed: Theory panel Worksheets sub-section header removed; worksheet controls are now inline within Theory panel.",
-    "Fixed: Tab bar now truncates long tab names (max-width 150px, ellipsis), shows full name on hover, wider scroll area, and visible thin scrollbar."
+    "Fixed: Tab bar now truncates long tab names (max-width 150px, ellipsis), shows full name on hover, wider scroll area, and visible thin scrollbar.",
+    "Bug: Deleting a tab does not update the page title; the document title (e.g. in the browser tab) still shows the deleted tab's name.",
+    "Bug: The page title (header) is being clipped; text is cut off and not fully visible."
   ],
   "functional_requirements": {
     "canvas": [
@@ -353,7 +358,9 @@
     "Validate cached localStorage project payloads against schema and fall back safely when invalid.",
     "Unify schema validation/normalization at all ingress points (API routes, localStorage, import).",
     "Replace placeholder lint scripts with real linting and add API integration tests.",
-    "Refactor oversized UI modules (e.g., App.tsx) into focused hooks/components to reduce side-effect coupling."
+    "Refactor oversized UI modules (e.g., App.tsx) into focused hooks/components to reduce side-effect coupling.",
+    "Cleanup: Remove legacy frontend/ directory — Next.js stub (next-env.d.ts, .gitignore); the app is apps/web (Vite). No Next app exists in the repo.",
+    "Cleanup: Wire or remove landing_shots.mjs — unreferenced Playwright screenshot script; add a package.json script (e.g. screenshots) and document, or move to scripts/ and wire, or delete if unused."
   ],
   "frontend": [
     "Normalize tuning input (case + sharps/flats) before storing so note parsing and labels remain consistent."
@@ -451,6 +458,33 @@
       { "priority": "medium", "item": "Title input placeholder when empty; zoom buttons aria-label." },
       { "priority": "medium", "item": "Empty-state copy: 'Use Add Neck to add your first diagram.'" },
       { "priority": "low", "item": "Loading: subtle animation; modal Cancel as default focus; optional keyboard move for selected diagram." }
+    ]
+  },
+  "code_review_findings": {
+    "date": "2026-03-04",
+    "source": "Codebase review for best practices, code smells, and bugs.",
+    "bugs": [
+      "API .env path: path.resolve(process.cwd(), '../../.env') in apps/api/src/index.ts and seed.ts resolves outside repo when cwd is repo root; .env never loaded. Fix: resolve from __dirname or import.meta.url to repo root .env.",
+      "PATCH /api/projects/:id: data passed to prisma.project.update() is Record<string, unknown>; type-unsafe and spreads all patch keys. Fix: build explicit update object with only title, data, lastOpenedAt (as Date)."
+    ],
+    "best_practices": [
+      "GET /api/projects/last updates lastOpenedAt (side effect on GET). Prefer pure GET and separate touch endpoint or touch in PATCH save flow.",
+      "Lint scripts in apps/api and apps/web are placeholders (echo); add real ESLint and run in CI.",
+      "Single global PrismaClient is fine for long-running Express; if adding serverless, use singleton per process."
+    ],
+    "code_smells": [
+      "NeckConfig in packages/shared lacks multiscaleAngle; NeckDiagram.tsx uses config.multiscaleAngle. Add multiscaleAngle?: number to NeckConfig in @shared/types.",
+      "projectData.test.ts uses as any and loose casts; prefer typed test helpers or narrow casts to keep tests type-safe.",
+      "App.tsx is very large (~4k+ lines); split into hooks/components (canvas, export, theory, constants) per quality_tech_debt.",
+      "API client (lib/api.ts) does not send credentials; when adding cookie/session auth, use credentials: 'include' for cross-origin fetch."
+    ],
+    "prioritized": [
+      { "priority": "high", "item": "Fix .env path in apps/api/src/index.ts and seed.ts (resolve from file, not cwd)." },
+      { "priority": "high", "item": "Fix PATCH projects: explicit update object and Prisma ProjectUpdateInput type." },
+      { "priority": "medium", "item": "Add multiscaleAngle?: number to NeckConfig in packages/shared/src/types.ts." },
+      { "priority": "medium", "item": "Replace placeholder lint scripts with real ESLint; run in CI." },
+      { "priority": "low", "item": "Consider GET /last side effect; optional touch endpoint or touch in PATCH." },
+      { "priority": "low", "item": "Tighten projectData.test.ts types; reduce as any." }
     ]
   },
   "frontend_typescript_review": {
