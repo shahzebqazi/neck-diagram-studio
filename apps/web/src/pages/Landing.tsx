@@ -1,389 +1,229 @@
-import { useEffect, useState } from "react";
-import { Link, usePathname } from "../lib/router";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "../lib/router";
 
-const LINK_ITEMS = [
+const FEATURES = [
   {
-    title: "Documentation",
-    description: "Shortcuts, exports, and layout tips for clean, readable diagrams.",
-    href: "/docs",
-    internal: true
+    title: "Scale + interval labeling",
+    description:
+      "Label every note by key name or interval. Switch between views to build a clear reference for any scale or mode.",
+    image: "/screenshots/studio-demo-canvas.png"
   },
   {
-    title: "Code Repository",
-    description: "Browse the source and track issues in the public repo.",
-    href: "https://gitlab.com/destroyerofworlds/neck-diagram-studio"
+    title: "Full studio workspace",
+    description:
+      "A sidebar with theory controls, a zoomable canvas, and configurable diagrams — all in one place.",
+    image: "/screenshots/studio-with-sidebar.png"
   },
   {
-    title: "Creator Website",
-    description: "Learn about the studio behind Neck Diagram Studio.",
-    href: "https://iconoclastaud.io/"
+    title: "Worksheets + presets",
+    description:
+      "Load bundled worksheets for shape sharing, sweep arpeggios, and harmonic minor modes — or build your own.",
+    image: "/screenshots/studio-dorian-flow.png"
   }
 ];
 
-const FEATURE_SLIDES = [
+const STEPS = [
   {
-    title: "Blank canvas layout",
-    description: "Start from a blank canvas to build any guitar neck diagram with the spacing you need.",
-    art: (
-      <svg viewBox="0 0 320 180" role="img" aria-label="Blank canvas preview">
-        <rect x="0" y="0" width="320" height="180" rx="18" fill="var(--panel-strong)" />
-        <rect x="20" y="20" width="280" height="24" rx="10" fill="var(--panel)" />
-        <rect x="20" y="58" width="280" height="100" rx="14" fill="var(--bg)" />
-        <rect x="40" y="78" width="120" height="60" rx="12" fill="var(--panel)" />
-        <rect x="180" y="90" width="110" height="54" rx="12" fill="var(--panel)" />
-        <circle cx="72" cy="108" r="6" fill="var(--accent)" />
-        <circle cx="98" cy="118" r="6" fill="var(--accent)" />
-        <circle cx="208" cy="116" r="6" fill="var(--accent-strong)" />
-      </svg>
-    )
+    num: "01",
+    title: "Open a project",
+    description: "Start with a blank canvas or load a bundled worksheet."
   },
   {
-    title: "Key + scale labeling",
-    description: "Add root, scale, and position labels to create a clear interval chart for any key.",
-    art: (
-      <svg viewBox="0 0 320 180" role="img" aria-label="Neck diagram with labels">
-        <rect x="0" y="0" width="320" height="180" rx="18" fill="var(--panel-strong)" />
-        <rect x="24" y="30" width="272" height="110" rx="14" fill="var(--bg)" />
-        {Array.from({ length: 6 }).map((_, index) => (
-          <line
-            key={`label-string-${index}`}
-            x1="24"
-            y1={48 + index * 18}
-            x2="296"
-            y2={48 + index * 18}
-            stroke="var(--border)"
-            strokeWidth={index === 0 || index === 5 ? 2 : 1}
-          />
-        ))}
-        {Array.from({ length: 7 }).map((_, index) => (
-          <line
-            key={`label-fret-${index}`}
-            x1={46 + index * 36}
-            y1="30"
-            x2={46 + index * 36}
-            y2="140"
-            stroke="var(--border)"
-            strokeWidth={index === 0 ? 3 : 1}
-          />
-        ))}
-        <circle cx="110" cy="84" r="10" fill="var(--accent)" />
-        <circle cx="182" cy="66" r="10" fill="var(--accent-strong)" />
-        <circle cx="238" cy="108" r="10" fill="var(--accent)" />
-      </svg>
-    )
+    num: "02",
+    title: "Label + arrange",
+    description: "Pick keys, scales, and positions. Drag diagrams into layout."
   },
   {
-    title: "Export-ready layouts",
-    description: "Create a printable fretboard for a guitar practice chart or guitar lesson handout.",
-    art: (
-      <svg viewBox="0 0 320 180" role="img" aria-label="Export layout preview">
-        <rect x="0" y="0" width="320" height="180" rx="18" fill="var(--panel-strong)" />
-        <rect x="26" y="28" width="268" height="40" rx="12" fill="var(--panel)" />
-        <rect x="26" y="78" width="268" height="74" rx="14" fill="var(--bg)" />
-        <rect x="42" y="92" width="100" height="46" rx="10" fill="var(--panel)" />
-        <rect x="156" y="92" width="122" height="46" rx="10" fill="var(--panel)" />
-        <circle cx="74" cy="115" r="7" fill="var(--accent)" />
-        <circle cx="190" cy="118" r="7" fill="var(--accent-strong)" />
-      </svg>
-    )
-  }
-];
-
-const STEP_ITEMS = [
-  {
-    title: "Start a project",
-    description: "Open a blank canvas and add your first neck diagram."
-  },
-  {
-    title: "Label and arrange",
-    description: "Label keys, scales, and positions, then arrange diagrams for the lesson."
-  },
-  {
-    title: "Export and share",
-    description: "Export a diagram or full page for practice or class."
+    num: "03",
+    title: "Export + share",
+    description: "Export the page or individual diagrams as PNG, PDF, or JSON."
   }
 ];
 
 const USE_CASES = [
   {
     title: "Practice charts",
-    description: "Build a scale map or guitar scale chart for focused routines."
+    description: "Build a scale map for focused daily routines."
   },
   {
     title: "Teaching handouts",
-    description: "Make a clean guitar lesson handout with fretboard notes students can read."
+    description: "Print clean diagrams students can actually read."
   },
   {
     title: "Song mapping",
-    description: "Map positions and interval targets across the neck."
+    description: "Map intervals and positions across the full neck."
   }
 ];
 
-const FAQ_ITEMS = [
-  {
-    title: "Why does the demo reset?",
-    description: "The demo is temporary and clears on refresh, so you can explore without saving."
-  },
-  {
-    title: "Which export formats are supported?",
-    description: "PNG, PDF, and JSON exports are available for diagrams and full pages."
-  },
-  {
-    title: "Is there offline recovery?",
-    description: "If the app can't reach the server, it will try to load the last project saved in your browser."
-  }
-];
-
-const LandingPage = () => {
-  const pathname = usePathname();
-  const primaryTarget = "/app";
-  const isActive = (path: string) => pathname === path;
-  const [collapsedSections, setCollapsedSections] = useState({
-    how: false,
-    useCases: false,
-    faq: false,
-    links: false
-  });
-
-  const toggleSection = (section: keyof typeof collapsedSections) => {
-    setCollapsedSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
-  const [featureIndex, setFeatureIndex] = useState(0);
+function useReveal() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setFeatureIndex((prev) => (prev + 1) % FEATURE_SLIDES.length);
-    }, 4800);
-    return () => window.clearInterval(timer);
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
+  return { ref, className: `reveal${visible ? " is-visible" : ""}` };
+}
+
+const LandingPage = () => {
+  const feature0 = useReveal();
+  const feature1 = useReveal();
+  const feature2 = useReveal();
+  const stepsReveal = useReveal();
+  const useCasesReveal = useReveal();
+  const ctaReveal = useReveal();
+  const featureReveals = [feature0, feature1, feature2];
+
   return (
-    <div className="landing-page">
-      <nav className="landing-nav">
-        <div className="landing-brand">
-          <div className="landing-logo">NDS</div>
-          <div>
-            <div className="landing-title">Neck Diagram Studio</div>
-            <div className="landing-subtitle">Guitar neck diagram builder</div>
-          </div>
+    <div className="lp">
+      <nav className="lp-nav">
+        <div className="lp-brand">
+          <div className="lp-logo">NDS</div>
+          <span className="lp-wordmark">Neck Diagram Studio</span>
         </div>
-        <div className="landing-nav-links">
-          <Link
-            to="/"
-            className={`landing-link${isActive("/") ? " is-active" : ""}`}
-            aria-current={isActive("/") ? "page" : undefined}
-          >
-            Home
-          </Link>
-          <Link
-            to="/demo"
-            className={`landing-link${isActive("/demo") ? " is-active" : ""}`}
-            aria-current={isActive("/demo") ? "page" : undefined}
-          >
-            Demo
-          </Link>
-          <Link
-            to="/docs"
-            className={`landing-link${isActive("/docs") ? " is-active" : ""}`}
-            aria-current={isActive("/docs") ? "page" : undefined}
-          >
+        <div className="lp-nav-links">
+          <Link to="/docs" className="lp-link">
             Docs
           </Link>
-        </div>
-        <div className="landing-nav-cta">
-          <Link to={primaryTarget} className="cta-button primary">
+          <a
+            className="lp-link"
+            href="https://gitlab.com/destroyerofworlds/neck-diagram-studio"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Source
+          </a>
+          <Link to="/app" className="lp-cta">
             Open Studio
           </Link>
         </div>
       </nav>
 
-      <main className="landing-content">
-        <section className="landing-hero">
-          <div className="hero-copy">
-            <div className="hero-pill">Version 0.1 Preview</div>
-            <h1>Quick, clear guitar neck diagram builder for practice and teaching.</h1>
-            <p>
-              Build a clean fretboard diagram in minutes and turn it into a guitar scale chart or
-              scale map. Label fretboard notes with an interval chart view for lessons and
-              practice.
+      <header className="lp-hero">
+        <div className="lp-hero-bg" aria-hidden="true" />
+        <div className="lp-hero-inner">
+          <div className="lp-hero-copy">
+            <h1 className="lp-headline">
+              Build clear guitar neck diagrams in&nbsp;minutes.
+            </h1>
+            <p className="lp-subline">
+              A free studio for scale charts, interval maps, and teaching
+              handouts. Label fretboard notes, arrange diagrams, and export
+              print&#8209;ready pages.
             </p>
-            <div className="hero-cta">
-              <Link to={primaryTarget} className="cta-button primary">
+            <div className="lp-hero-actions">
+              <Link to="/app" className="lp-btn lp-btn--primary">
                 Start a Project
               </Link>
-              <Link to="/demo" className="cta-button ghost">
-                Explore the Demo
-              </Link>
             </div>
-            <div className="hero-meta">
-              <span>Auto‑saves while you work</span>
-              <span>Local recovery copy</span>
-              <span>Tabs for variations</span>
+            <div className="lp-hero-meta">
+              <span>Auto&#8209;saves</span>
+              <span>Local recovery</span>
+              <span>PNG &middot; PDF &middot; JSON</span>
             </div>
           </div>
-          <div className="hero-panel">
-            <div className="hero-panel-header">Core features</div>
-            <div className="feature-carousel" role="region" aria-live="polite">
-              {FEATURE_SLIDES.map((feature, index) => (
-                <div
-                  key={feature.title}
-                  className={`feature-slide${index === featureIndex ? " is-active" : ""}`}
-                  aria-hidden={index !== featureIndex}
-                >
-                  <div className="feature-copy">
-                    <h3>{feature.title}</h3>
-                    <p>{feature.description}</p>
-                  </div>
-                  <div className="feature-media">{feature.art}</div>
-                </div>
-              ))}
-              <div className="feature-dots" role="tablist" aria-label="Feature slides">
-                {FEATURE_SLIDES.map((feature, index) => (
-                  <button
-                    key={feature.title}
-                    type="button"
-                    className={`feature-dot${index === featureIndex ? " is-active" : ""}`}
-                    onClick={() => setFeatureIndex(index)}
-                    aria-label={`Show ${feature.title}`}
-                    aria-pressed={index === featureIndex}
+          <div className="lp-hero-visual">
+            <div className="lp-glass">
+              <img
+                src="/screenshots/studio-overview-50pct.png"
+                alt="Neck Diagram Studio canvas showing E Minor Pentatonic and Picking Drill diagrams"
+                draggable={false}
+              />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section className="lp-features">
+        {FEATURES.map((feature, i) => {
+          const r = featureReveals[i];
+          const reversed = i % 2 === 1;
+          return (
+            <div
+              key={feature.title}
+              ref={r.ref}
+              className={`lp-feature${reversed ? " lp-feature--reversed" : ""} ${r.className}`}
+            >
+              <div className="lp-feature-copy">
+                <h2>{feature.title}</h2>
+                <p>{feature.description}</p>
+              </div>
+              <div className="lp-feature-visual">
+                <div className="lp-glass">
+                  <img
+                    src={feature.image}
+                    alt={feature.title}
+                    draggable={false}
+                    loading="lazy"
                   />
-                ))}
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          );
+        })}
+      </section>
 
-        <section className={`landing-section${collapsedSections.how ? " is-collapsed" : ""}`}>
-          <div className="section-header">
-            <div className="section-text">
-              <h2>How it works</h2>
-              <p>A simple workflow for clear, reusable diagrams.</p>
+      <section ref={stepsReveal.ref} className={`lp-steps ${stepsReveal.className}`}>
+        <h2 className="lp-section-title">How it works</h2>
+        <div className="lp-steps-grid">
+          {STEPS.map((step) => (
+            <div key={step.num} className="lp-step">
+              <span className="lp-step-num">{step.num}</span>
+              <h3>{step.title}</h3>
+              <p>{step.description}</p>
             </div>
-            <button
-              className="section-toggle"
-              type="button"
-              onClick={() => toggleSection("how")}
-              aria-expanded={!collapsedSections.how}
-            >
-              {collapsedSections.how ? "Expand" : "Minimize"}
-            </button>
-          </div>
-          {!collapsedSections.how ? (
-            <div className="section-body">
-              <div className="section-grid">
-                {STEP_ITEMS.map((item) => (
-                  <div key={item.title} className="info-card">
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </section>
+          ))}
+        </div>
+      </section>
 
-        <section className={`landing-section${collapsedSections.useCases ? " is-collapsed" : ""}`}>
-          <div className="section-header">
-            <div className="section-text">
-              <h2>Common use cases</h2>
-              <p>Built for practice, teaching, and song planning.</p>
+      <section ref={useCasesReveal.ref} className={`lp-cases ${useCasesReveal.className}`}>
+        <h2 className="lp-section-title">Built for</h2>
+        <div className="lp-cases-grid">
+          {USE_CASES.map((uc) => (
+            <div key={uc.title} className="lp-case">
+              <h3>{uc.title}</h3>
+              <p>{uc.description}</p>
             </div>
-            <button
-              className="section-toggle"
-              type="button"
-              onClick={() => toggleSection("useCases")}
-              aria-expanded={!collapsedSections.useCases}
-            >
-              {collapsedSections.useCases ? "Expand" : "Minimize"}
-            </button>
-          </div>
-          {!collapsedSections.useCases ? (
-            <div className="section-body">
-              <div className="section-grid">
-                {USE_CASES.map((item) => (
-                  <div key={item.title} className="info-card">
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </section>
+          ))}
+        </div>
+      </section>
 
-        <section className={`landing-section${collapsedSections.faq ? " is-collapsed" : ""}`}>
-          <div className="section-header">
-            <div className="section-text">
-              <h2>FAQ</h2>
-              <p>Quick answers to common questions.</p>
-            </div>
-            <button
-              className="section-toggle"
-              type="button"
-              onClick={() => toggleSection("faq")}
-              aria-expanded={!collapsedSections.faq}
-            >
-              {collapsedSections.faq ? "Expand" : "Minimize"}
-            </button>
-          </div>
-          {!collapsedSections.faq ? (
-            <div className="section-body">
-              <div className="section-grid">
-                {FAQ_ITEMS.map((item) => (
-                  <div key={item.title} className="info-card">
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </section>
+      <section ref={ctaReveal.ref} className={`lp-final ${ctaReveal.className}`}>
+        <h2>Ready to build?</h2>
+        <Link to="/app" className="lp-btn lp-btn--primary">
+          Open Studio
+        </Link>
+      </section>
 
-        <section className={`landing-links${collapsedSections.links ? " is-collapsed" : ""}`}>
-          <div className="section-header">
-            <div className="section-text">
-              <h2>Key Links</h2>
-              <p>Quick links to documentation, the public repo, and the studio behind Neck Diagram Studio.</p>
-            </div>
-            <button
-              className="section-toggle"
-              type="button"
-              onClick={() => toggleSection("links")}
-              aria-expanded={!collapsedSections.links}
-            >
-              {collapsedSections.links ? "Expand" : "Minimize"}
-            </button>
-          </div>
-          {!collapsedSections.links ? (
-            <div className="section-body">
-              <div className="link-grid">
-                {LINK_ITEMS.map((item) =>
-                  item.internal ? (
-                    <Link key={item.title} className="link-card" to={item.href}>
-                      <div className="link-title">{item.title}</div>
-                      <div className="link-description">{item.description}</div>
-                      <div className="link-arrow">View</div>
-                    </Link>
-                  ) : (
-                    <a
-                      key={item.title}
-                      className="link-card"
-                      href={item.href}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <div className="link-title">{item.title}</div>
-                      <div className="link-description">{item.description}</div>
-                      <div className="link-arrow">View</div>
-                    </a>
-                  )
-                )}
-              </div>
-            </div>
-          ) : null}
-        </section>
-      </main>
+      <footer className="lp-footer">
+        <div className="lp-footer-links">
+          <Link to="/docs">Docs</Link>
+          <a
+            href="https://gitlab.com/destroyerofworlds/neck-diagram-studio"
+            target="_blank"
+            rel="noreferrer"
+          >
+            GitLab
+          </a>
+          <a href="https://iconoclastaud.io/" target="_blank" rel="noreferrer">
+            iconoclastaud.io
+          </a>
+        </div>
+        <span className="lp-footer-version">v0.1 Preview</span>
+      </footer>
     </div>
   );
 };
