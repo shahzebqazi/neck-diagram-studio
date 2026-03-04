@@ -1653,13 +1653,14 @@ const App = ({ mode = "studio" }: AppProps) => {
       const nextFrets = positionPreset?.minFrets
         ? Math.max(config.frets, positionPreset.minFrets)
         : config.frets;
+      const nextStartFret = item.config?.startFret ?? getStartFretForPosition(positionName);
       const diagram = createNeckDiagram({
         x: position.x,
         y: position.y,
         name: item.name,
         tabId: targetTabId,
         layoutMode: gridForTile.length === 0 && placed.length === 0 ? "float" : "grid",
-        config: { ...config, frets: nextFrets },
+        config: { ...config, frets: nextFrets, startFret: nextStartFret },
         keyId: item.keyId,
         scaleId: item.scaleId,
         positionId: item.positionId,
@@ -1756,11 +1757,13 @@ const App = ({ mode = "studio" }: AppProps) => {
           const baseFrets = positionPreset?.minFrets
             ? Math.max(genFrets, positionPreset.minFrets)
             : genFrets;
+          const startFret = getStartFretForPosition(positionName);
           const tuning = getStandardTuning(genStrings);
           const config = {
             ...DEFAULT_NECK_CONFIG,
             strings: genStrings,
             frets: baseFrets,
+            startFret,
             tuning: normalizeTuning(genStrings, tuning)
           };
           const position = suggestTile(
@@ -2640,6 +2643,7 @@ const App = ({ mode = "studio" }: AppProps) => {
 
   return (
     <div className="app">
+      <div className="app-inner">
       <header className="app-header">
         <div className="title-group">
           <input
@@ -4046,6 +4050,7 @@ const App = ({ mode = "studio" }: AppProps) => {
             )}
           </div>
         </main>
+      </div>
       </div>
       {deletePrompt ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">

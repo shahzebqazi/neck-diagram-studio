@@ -292,6 +292,41 @@
       "soundEnabled": "boolean",
       "instrument": "string (default: clean-guitar)",
       "volume": "number (0..1, optional)"
+    },
+    "data_model_improvement_strategy": {
+      "date": "2026-03-04",
+      "source": "Stakeholder review + database systems expert review of worksheets and music theory implementation.",
+      "current_state_issues": [
+        "Music theory (library): Two sources of truth — apps/api/src/seed.ts and apps/web/src/lib/libraryDefaults.ts. Same scales/keys/modes duplicated; seed and defaults are out of sync (e.g. seed missing Position 6, Position 7, 12-27).",
+        "Library IDs: DB uses Prisma UUID; frontend defaults use stable slugs (default:key:g, default:scale:major-ionian). Worksheet JSON and diagrams reference the slugs. When library is loaded from API, resolution by id fails because API returns UUIDs.",
+        "Worksheets: No database or API. Only static JSON in public/worksheets/, localStorage for current worksheet, and bundled list hardcoded in App.tsx (labels + paths). Adding a worksheet requires code change and redeploy.",
+        "Worksheet items reference keyId/scaleId/positionId; those ids are client slugs. No single canonical identifier scheme for stored data."
+      ],
+      "library_strategy": [
+        "Single source of truth: Define the canonical list of library items in one place (e.g. shared seed module or JSON). API seed and frontend fallback should both consume it; remove duplicated inline arrays in seed.ts and libraryDefaults.ts.",
+        "Stable IDs: Add a stableId (or slug) column to LibraryItem and seed with values like default:key:g, default:scale:major-ionian. API returns stableId; frontend resolves by stableId so worksheets and diagrams resolve whether data came from API or fallback.",
+        "Align seed and defaults: Ensure seed includes all positions and keys that libraryDefaults has (Position 6, 7, 12-27) so one source produces identical sets."
+      ],
+      "worksheets_strategy": [
+        "First-class persistence: Add a Worksheet (or WorksheetTemplate) table: id, title, sourceRef, items (JSONB), optional config, isBundled, sortOrder, createdAt/updatedAt.",
+        "API: GET /api/worksheets (list), GET /api/worksheets/:id or ?slug= (single). Optionally POST/PATCH/DELETE for user-created worksheets later.",
+        "Bundled worksheets: Seed the DB from current public/worksheets/*.json (or shared data dir). Frontend loads bundle list from API instead of hardcoded array in App.tsx."
+      ],
+      "id_scheme_strategy": [
+        "Use one canonical identifier for library items in all stored data (worksheets, project JSON, diagram config). Prefer stableId (e.g. default:key:g) as the stored value; DB holds stableId (unique); API and frontend use it consistently.",
+        "Migrate existing worksheet JSON and any stored diagram keyId/scaleId/positionId to the chosen scheme so resolution is reliable."
+      ],
+      "validation_and_schema": [
+        "Shared schema: In packages/shared, define JSON schema or Zod for Worksheet and WorksheetItem; use for upload/paste validation and API request validation.",
+        "Optional schemaVersion and sourceFormat on Worksheet for long-term compatibility and GP/MIDI/Reaper workflows.",
+        "Centralized parse: One parse-and-validate-worksheet function used by API and web for consistent behavior and errors."
+      ],
+      "implementation_order": [
+        "Library: Single seed source; add stableId to Prisma and seed; API returns it; frontend resolves by stableId; remove duplication.",
+        "IDs: Migrate worksheet JSON and diagram references to chosen scheme (all stableId or all UUID).",
+        "Worksheets: Add Worksheet table and read endpoints; seed bundled worksheets; UI loads bundle list from API; remove hardcoded list from App.tsx.",
+        "Validation: Shared Worksheet/WorksheetItem schema and use at all ingress points (paste, file upload, API)."
+      ]
     }
   },
   "api_endpoints": [
@@ -311,6 +346,7 @@
     "In narrow viewports (≤960px) the sidebar overlays the canvas with correct z-index and width so it renders on top."
   ],
   "quality_tech_debt": [
+    "Data model: Implement data_model_improvement_strategy (see data_model.data_model_improvement_strategy) — single source for library seed, stable IDs, worksheets as first-class entities, one ID scheme, shared validation.",
     "Reduce drag listener churn by decoupling drag handlers from frequently-updated state; avoid re-registering listeners on every pointer move.",
     "Profile React renders with React DevTools Profiler (drag, resize, import) and address hotspots/unnecessary re-renders.",
     "Normalize imported notes to always include stable ids (generate missing ids and dedupe).",
