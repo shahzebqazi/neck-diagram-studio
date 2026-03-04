@@ -89,4 +89,17 @@ describeIf("projects API", () => {
     expect(res.status).toBe(200);
     expect(res.body.id).toBe(project.id);
   });
+
+  it("returns 404 when PATCH targets missing project id", async () => {
+    const res = await request(app)
+      .patch("/api/projects/00000000-0000-0000-0000-000000000000")
+      .send({ title: "No Such Project" });
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe("Project not found");
+  });
+
+  it("POST /api/projects/last/touch returns 204", async () => {
+    const res = await request(app).post("/api/projects/last/touch");
+    expect(res.status).toBe(204);
+  });
 });

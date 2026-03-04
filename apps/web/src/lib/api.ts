@@ -9,6 +9,12 @@ export const fetchLastProject = async () => {
   return (await res.json()) as ProjectRecord;
 };
 
+export const touchLastProject = async () => {
+  const res = await fetch(`${API_BASE}/api/projects/last/touch`, { method: "POST" });
+  if (res.status === 204) return;
+  if (!res.ok) throw new Error("Failed to touch last project");
+};
+
 export const createProject = async (title: string, data: ProjectData) => {
   const res = await fetch(`${API_BASE}/api/projects`, {
     method: "POST",

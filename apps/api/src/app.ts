@@ -24,9 +24,21 @@ export const createApp = ({ clientOrigin }: AppOptions = {}) => {
   }
 
   app.disable("x-powered-by");
+  // Security headers: explicit CSP, Referrer-Policy, X-Content-Type-Options, frame protection
   app.use(
     helmet({
-      contentSecurityPolicy: false,
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          upgradeInsecureRequests: null
+        }
+      },
+      referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+      noSniff: true,
+      frameguard: { action: "deny" },
       crossOriginResourcePolicy: { policy: "cross-origin" }
     })
   );
@@ -67,9 +79,16 @@ export const createApp = ({ clientOrigin }: AppOptions = {}) => {
     (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
       const message = err instanceof Error ? err.message : "Internal server error";
       const status = message.toLowerCase().includes("cors") ? 403 : 500;
-      // eslint-disable-next-line no-console
-      console.error(err);
-      res.status(status).json({ error: status === 500 ? "Internal server error" : message });
+      const safeMessage = status === 500 ? "Internal server error" : message;
+      // In production, do not log full error/stack to avoid exposing stack traces in logs
+      if (process.env.NODE_ENV === "production") {
+        // eslint-disable-next-line no-console
+        console.error(safeMessage);
+      } else {
+        // eslint-disable-next-line no-console
+        console.error(err);
+      }
+      res.status(status).json({ error: safeMessage });
     }
   );
 

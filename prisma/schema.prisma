@@ -26,6 +26,7 @@ model Project {
 
 model LibraryItem {
   id          String      @id @default(uuid())
+  stableId    String      @unique
   type        LibraryType
   name        String
   intervals   Int[]

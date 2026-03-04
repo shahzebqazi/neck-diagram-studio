@@ -1,8 +1,10 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { createApp } from "./app";
 
-const envPath = path.resolve(process.cwd(), "../../.env");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const envPath = path.resolve(__dirname, "../../.env");
 
 dotenv.config({ path: envPath });
 dotenv.config();

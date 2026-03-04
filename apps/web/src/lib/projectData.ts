@@ -38,13 +38,17 @@ export const normalizeProjectData = (data: ProjectData): ProjectData => {
     diagrams.some((diagram) => diagram.id === data.selectedDiagramId)
       ? data.selectedDiagramId
       : undefined;
+  const createdAt =
+    typeof data.createdAt === "string" && data.createdAt.trim() !== ""
+      ? data.createdAt
+      : now;
   return {
     ...data,
     diagrams,
     tabs,
     activeTabId,
     selectedDiagramId,
-    createdAt: data.createdAt ?? now,
+    createdAt,
     updatedAt: now
   };
 };

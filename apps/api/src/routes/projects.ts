@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../db";
 
 const router = Router();
@@ -79,12 +80,24 @@ router.get("/last", async (_req, res) => {
     return res.status(204).end();
   }
 
+  return res.json(project);
+});
+
+router.post("/last/touch", async (_req, res) => {
+  const project = await prisma.project.findFirst({
+    orderBy: { lastOpenedAt: "desc" }
+  });
+
+  if (!project) {
+    return res.status(204).end();
+  }
+
   await prisma.project.update({
     where: { id: project.id },
     data: { lastOpenedAt: new Date() }
   });
 
-  return res.json(project);
+  return res.status(204).end();
 });
 
 router.get("/:id", async (req, res) => {
@@ -134,11 +147,10 @@ router.patch("/:id", async (req, res) => {
     return res.status(404).json({ error: "Project not found" });
   }
 
-  const data: Record<string, unknown> = { ...patch };
-
-  if (patch.lastOpenedAt) {
-    data.lastOpenedAt = new Date(patch.lastOpenedAt);
-  }
+  const data: Prisma.ProjectUpdateInput = {};
+  if (patch.title !== undefined) data.title = patch.title;
+  if (patch.data !== undefined) data.data = patch.data;
+  if (patch.lastOpenedAt !== undefined) data.lastOpenedAt = new Date(patch.lastOpenedAt);
 
   const project = await prisma.project.update({
     where: { id: req.params.id },

@@ -27,7 +27,7 @@ import {
   getStandardTuning
 } from "./state/defaults";
 import { suggestTile } from "./lib/tiling";
-import { fetchLastProject, createProject, updateProject, fetchLibrary } from "./lib/api";
+import { fetchLastProject, touchLastProject, createProject, updateProject, fetchLibrary } from "./lib/api";
 import { loadLocalProject, saveLocalProject } from "./lib/storage";
 import { useDebouncedEffect } from "./lib/hooks";
 import { requestExportName, slugify } from "./lib/exportUtils";
@@ -42,6 +42,7 @@ import {
   stripScaleLength
 } from "./lib/projectData";
 import { getNoteIndex, noteNameToIndex } from "./lib/neckMath";
+import { Link } from "./lib/router";
 
 const MIN_WIDTH = 260;
 const MIN_HEIGHT = 90;
@@ -273,11 +274,17 @@ const svgToImage = (svg: SVGSVGElement, caption?: string) => {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   if (typeof window !== "undefined") {
     const styles = getComputedStyle(document.documentElement);
+    const varDecls = SVG_EXPORT_VARS.map(
+      ({ name, fallback }) => `${name}: ${styles.getPropertyValue(name).trim() || fallback}`
+    ).join("; ");
+    const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
+    style.textContent = `svg { ${varDecls} }`;
+    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    defs.appendChild(style);
+    clone.insertBefore(defs, clone.firstChild);
     SVG_EXPORT_VARS.forEach(({ name, fallback }) => {
       const value = styles.getPropertyValue(name).trim() || fallback;
-      if (value) {
-        clone.style.setProperty(name, value);
-      }
+      if (value) clone.style.setProperty(name, value);
     });
   }
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
@@ -292,7 +299,7 @@ const svgToImage = (svg: SVGSVGElement, caption?: string) => {
     finalHeight += EXPORT_CAPTION_HEIGHT;
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
     text.setAttribute("x", `${width / 2}`);
-    text.setAttribute("y", `${height + extraHeight + EXPORT_CAPTION_HEIGHT / 2}`);
+    text.setAttribute("y", `${EXPORT_CAPTION_HEIGHT / 2}`);
     text.setAttribute("text-anchor", "middle");
     text.setAttribute("dominant-baseline", "middle");
     text.setAttribute(
@@ -303,7 +310,13 @@ const svgToImage = (svg: SVGSVGElement, caption?: string) => {
     const muted = getCssVar("--muted", "#9aa7b2");
     text.setAttribute("fill", muted);
     text.textContent = caption;
-    clone.appendChild(text);
+    clone.insertBefore(text, clone.children[1] ?? null);
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("transform", `translate(0, ${EXPORT_CAPTION_HEIGHT})`);
+    while (clone.children.length > 2) {
+      g.appendChild(clone.children[2]);
+    }
+    clone.appendChild(g);
   }
 
   clone.setAttribute("width", `${width}`);
@@ -446,6 +459,7 @@ const App = ({ mode = "studio" }: AppProps) => {
   const isDemo = mode === "demo";
   const [project, setProject] = useState<ProjectRecord | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [retryCount, setRetryCount] = useState(0);
   const [isRemote, setIsRemote] = useState(true);
   const [defaultLabelMode, setDefaultLabelMode] = useState<LabelMode>("key");
   const [libraryQuery, setLibraryQuery] = useState("");
@@ -473,6 +487,9 @@ const App = ({ mode = "studio" }: AppProps) => {
   const [showDeleteWarning, setShowDeleteWarning] = useState(true);
   const [deletePrompt, setDeletePrompt] = useState<DeleteAction | null>(null);
   const [deletePromptDontShow, setDeletePromptDontShow] = useState(false);
+  const deleteTriggerRef = useRef<HTMLElement | null>(null);
+  const cancelDeleteButtonRef = useRef<HTMLButtonElement | null>(null);
+  const deleteModalRef = useRef<HTMLDivElement | null>(null);
   const [selectionTarget, setSelectionTarget] = useState<"diagram" | "tab" | "none">("none");
   const [draggingDiagramId, setDraggingDiagramId] = useState<string | null>(null);
   const [trashHoverDiagramId, setTrashHoverDiagramId] = useState<string | null>(null);
@@ -660,6 +677,7 @@ const App = ({ mode = "studio" }: AppProps) => {
           saveLocalProject(last);
           setIsRemote(true);
           setTitleInput(getDisplayTitle(last));
+          touchLastProject().catch(() => {});
         } else {
           const blank = createBlankProject();
           const created = await createProject(DEFAULT_PROJECT_TITLE, blank);
@@ -670,7 +688,7 @@ const App = ({ mode = "studio" }: AppProps) => {
           setTitleInput(getDisplayTitle(created));
         }
         setStatus("ready");
-      } catch (error) {
+      } catch {
         const local = loadLocalProject();
         if (local) {
           setProject(local);
@@ -680,19 +698,7 @@ const App = ({ mode = "studio" }: AppProps) => {
           return;
         }
 
-        const blank = createBlankProject();
-        const now = new Date().toISOString();
-        setProject({
-          id: `local-${crypto.randomUUID()}`,
-          title: DEFAULT_PROJECT_TITLE,
-          data: blank,
-          createdAt: now,
-          updatedAt: now,
-          lastOpenedAt: now
-        });
-        setIsRemote(false);
-        setStatus("ready");
-        setTitleInput("");
+        setStatus("error");
       }
     };
 
@@ -701,7 +707,7 @@ const App = ({ mode = "studio" }: AppProps) => {
     return () => {
       mounted = false;
     };
-  }, [isDemo]);
+  }, [isDemo, retryCount]);
 
   useEffect(() => {
     const stored = localStorage.getItem(DELETE_WARNING_STORAGE_KEY);
@@ -829,6 +835,39 @@ const App = ({ mode = "studio" }: AppProps) => {
   }, []);
 
   useEffect(() => {
+    const el = canvasRef.current?.parentElement;
+    if (!el || el.scrollWidth <= el.clientWidth) return;
+    const metrics = outlineLocked ?? outlineMetrics;
+    let centerX: number;
+    let centerY: number;
+    if (metrics) {
+      centerX = metrics.left + metrics.width / 2;
+      centerY = metrics.top + metrics.height / 2;
+    } else if (diagramsInActiveTab.length > 0) {
+      const minX = Math.min(...diagramsInActiveTab.map((d) => d.x));
+      const maxX = Math.max(...diagramsInActiveTab.map((d) => d.x + d.width));
+      const minY = Math.min(...diagramsInActiveTab.map((d) => d.y));
+      const maxY = Math.max(
+        ...diagramsInActiveTab.map((d) => d.y + getDiagramExportHeight(d))
+      );
+      centerX = (minX + maxX) / 2;
+      centerY = (minY + maxY) / 2;
+    } else {
+      return;
+    }
+    const targetScrollLeft = Math.max(
+      0,
+      Math.min(el.scrollWidth - el.clientWidth, centerX - canvasSize.width / 2)
+    );
+    const targetScrollTop = Math.max(
+      0,
+      Math.min(el.scrollHeight - el.clientHeight, centerY - canvasSize.height / 2)
+    );
+    el.scrollLeft = targetScrollLeft;
+    el.scrollTop = targetScrollTop;
+  }, [canvasSize, outlineMetrics, outlineLocked, diagramsInActiveTab]);
+
+  useEffect(() => {
     if (!project || !activeTabId) return;
     const diagramsInTab = project.data.diagrams.filter((diagram) => diagram.tabId === activeTabId);
     const gridDiagrams = diagramsInTab.filter(isGridDiagram);
@@ -910,7 +949,7 @@ const App = ({ mode = "studio" }: AppProps) => {
       setScaleOptions(combined);
       const nextIndex: Record<string, LibraryItem> = {};
       [...keys, ...combined, ...positions].forEach((item) => {
-        nextIndex[item.id] = item;
+        nextIndex[item.stableId ?? item.id] = item;
       });
       setLibraryIndex((prev) => ({ ...prev, ...nextIndex }));
     };
@@ -942,7 +981,7 @@ const App = ({ mode = "studio" }: AppProps) => {
         setLibraryResults(filtered);
         const nextIndex: Record<string, LibraryItem> = {};
         filtered.forEach((item) => {
-          nextIndex[item.id] = item;
+          nextIndex[item.stableId ?? item.id] = item;
         });
         setLibraryIndex((prev) => ({ ...prev, ...nextIndex }));
       } catch {
@@ -1340,7 +1379,7 @@ const App = ({ mode = "studio" }: AppProps) => {
     fallback: LibraryItem[]
   ) => {
     if (!id) return undefined;
-    return libraryIndex[id] ?? fallback.find((item) => item.id === id);
+    return libraryIndex[id] ?? fallback.find((item) => (item.stableId ?? item.id) === id);
   };
 
   const buildTheoryName = (
@@ -2246,6 +2285,7 @@ const App = ({ mode = "studio" }: AppProps) => {
     if (!action || deletePrompt) return;
     if (action.type === "tab" && (project?.data.tabs?.length ?? 0) <= 1) return;
     if (showDeleteWarning) {
+      deleteTriggerRef.current = document.activeElement as HTMLElement | null;
       setDeletePrompt(action);
       setDeletePromptDontShow(false);
       return;
@@ -2267,11 +2307,15 @@ const App = ({ mode = "studio" }: AppProps) => {
     } else {
       deleteTabById(deletePrompt.id);
     }
+    deleteTriggerRef.current?.focus();
+    deleteTriggerRef.current = null;
     setDeletePrompt(null);
     setDeletePromptDontShow(false);
   };
 
   const cancelDelete = () => {
+    deleteTriggerRef.current?.focus();
+    deleteTriggerRef.current = null;
     setDeletePrompt(null);
     setDeletePromptDontShow(false);
   };
@@ -2279,6 +2323,63 @@ const App = ({ mode = "studio" }: AppProps) => {
   useEffect(() => {
     requestDeleteRef.current = requestDelete;
   }, [requestDelete]);
+
+  useEffect(() => {
+    if (!deletePrompt) return;
+    const focusCancel = () => cancelDeleteButtonRef.current?.focus();
+    const id = requestAnimationFrame(focusCancel);
+    return () => cancelAnimationFrame(id);
+  }, [deletePrompt]);
+
+  useEffect(() => {
+    if (!deletePrompt || !deleteModalRef.current) return;
+    const el = deleteModalRef.current;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const focusable = el.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    el.addEventListener("keydown", handleKeyDown);
+    return () => el.removeEventListener("keydown", handleKeyDown);
+  }, [deletePrompt]);
+
+  useEffect(() => {
+    if (!deletePrompt || !deleteModalRef.current) return;
+    const el = deleteModalRef.current;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const focusable = el.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      const list = Array.from(focusable);
+      const len = list.length;
+      if (len === 0) return;
+      const current = document.activeElement as HTMLElement | null;
+      const idx = current ? list.indexOf(current) : -1;
+      const next = e.shiftKey ? (idx <= 0 ? list[len - 1] : list[idx - 1]) : (idx >= len - 1 ? list[0] : list[idx + 1]);
+      if (next) {
+        e.preventDefault();
+        next.focus();
+      }
+    };
+    el.addEventListener("keydown", handleKeyDown);
+    return () => el.removeEventListener("keydown", handleKeyDown);
+  }, [deletePrompt]);
 
   const moveDiagramToTab = (diagramId: string, tabId: string) => {
     const currentProject = projectRef.current;
@@ -2628,11 +2729,28 @@ const App = ({ mode = "studio" }: AppProps) => {
   const statusMessage = useMemo(() => {
     if (status === "loading") return "Loading last project...";
     if (!project) return "Starting blank project...";
-    if (project.data.diagrams.length === 0) return "Click + to add your first neck.";
+    if (project.data.diagrams.length === 0) return "Use Add Neck to add your first diagram.";
     if (diagramsInActiveTab.length === 0) return "This tab is empty. Add a neck.";
     return null;
   }, [status, project, diagramsInActiveTab.length]);
   const isEmptyProject = !!project && project.data.diagrams.length === 0;
+
+  const startBlankProject = () => {
+    const blank = createBlankProject();
+    const now = new Date().toISOString();
+    setProject({
+      id: `local-${crypto.randomUUID()}`,
+      title: DEFAULT_PROJECT_TITLE,
+      data: blank,
+      createdAt: now,
+      updatedAt: now,
+      lastOpenedAt: now
+    });
+    setIsRemote(false);
+    setStatus("ready");
+    setTitleInput("");
+  };
+
   if (status === "loading") {
     return (
       <div className="app loading">
@@ -2641,8 +2759,37 @@ const App = ({ mode = "studio" }: AppProps) => {
     );
   }
 
+  if (status === "error") {
+    return (
+      <div className="app loading">
+        <div className="loading-card">
+          <p>Couldn&apos;t load your project.</p>
+          <p>Start from scratch or try again.</p>
+          <div className="modal-actions" style={{ marginTop: 16 }}>
+            <button className="tool-button accent" type="button" onClick={startBlankProject}>
+              Start blank project
+            </button>
+            <button
+              className="tool-button"
+              type="button"
+              onClick={() => {
+                setStatus("loading");
+                setRetryCount((c) => c + 1);
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <div className="app-inner">
       <header className="app-header">
         <div className="title-group">
@@ -2658,6 +2805,9 @@ const App = ({ mode = "studio" }: AppProps) => {
             <span> // Neck Diagram Studio</span>
           </span>
         </div>
+        <Link to="/docs" className="docs-link" style={{ marginLeft: "auto" }}>
+          Docs
+        </Link>
       </header>
 
       <div className="toolbar">
@@ -2730,10 +2880,16 @@ const App = ({ mode = "studio" }: AppProps) => {
             type="button"
             onClick={() => adjustZoom(-ZOOM_STEP)}
             disabled={canvasZoom <= MIN_ZOOM}
+            aria-label="Zoom out"
           >
             <span>-</span>
           </button>
-          <button className="tool-button" type="button" onClick={resetZoom}>
+          <button
+            className="tool-button"
+            type="button"
+            onClick={resetZoom}
+            aria-label="Reset zoom"
+          >
             {Math.round(canvasZoom * 100)}%
           </button>
           <button
@@ -2741,6 +2897,7 @@ const App = ({ mode = "studio" }: AppProps) => {
             type="button"
             onClick={() => adjustZoom(ZOOM_STEP)}
             disabled={canvasZoom >= MAX_ZOOM}
+            aria-label="Zoom in"
           >
             <span>+</span>
           </button>
@@ -3972,7 +4129,7 @@ const App = ({ mode = "studio" }: AppProps) => {
           />
         </aside>
 
-        <main className="canvas" onPointerDown={handleCanvasPointerDown}>
+        <main id="main-content" className="canvas" onPointerDown={handleCanvasPointerDown}>
           {selectedDiagram ? (
             <div className="canvas-overlay" aria-hidden="true">
               <div className="trash-zone is-visible" ref={trashRef}>
@@ -4058,12 +4215,19 @@ const App = ({ mode = "studio" }: AppProps) => {
       </div>
       </div>
       {deletePrompt ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true">
+        <div
+          ref={deleteModalRef}
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-modal-title"
+          aria-describedby="delete-modal-desc"
+        >
           <div className="modal-card">
-            <h4>
+            <h4 id="delete-modal-title">
               Delete {deletePrompt.type === "diagram" ? "Diagram" : "Tab"}?
             </h4>
-            <p className="muted">
+            <p id="delete-modal-desc" className="muted">
               This will permanently delete the selected {deletePrompt.type === "diagram" ? "diagram" : "tab"}.
             </p>
             <label className="modal-checkbox">
@@ -4075,7 +4239,12 @@ const App = ({ mode = "studio" }: AppProps) => {
               <span>Don&apos;t show again</span>
             </label>
             <div className="modal-actions">
-              <button className="tool-button" type="button" onClick={cancelDelete}>
+              <button
+                ref={cancelDeleteButtonRef}
+                className="tool-button"
+                type="button"
+                onClick={cancelDelete}
+              >
                 Cancel
               </button>
               <button className="tool-button danger" type="button" onClick={confirmDelete}>

@@ -23,8 +23,10 @@ describeIf("library API", () => {
   });
 
   it("returns library items filtered by type and query", async () => {
+    const stableId = `test:scale:test-scale-${Date.now()}`;
     const item = await prisma.libraryItem.create({
       data: {
+        stableId,
         type: "scale",
         name: `Test Scale ${Date.now()}`,
         intervals: [0, 2, 4, 7, 9],
@@ -39,5 +41,8 @@ describeIf("library API", () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.some((result: { id?: string }) => result.id === item.id)).toBe(true);
+    expect(res.body.some((result: { stableId?: string }) => result.stableId === stableId)).toBe(
+      true
+    );
   });
 });

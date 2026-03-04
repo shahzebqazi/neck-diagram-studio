@@ -21,6 +21,7 @@ export type NeckConfig = {
   highlightRoot?: boolean;
   snapToGrid?: boolean;
   showInlays?: boolean;
+  multiscaleAngle?: number;
 };
 
 export type NeckDiagram = {
@@ -70,6 +71,8 @@ export type ProjectRecord = {
 
 export type LibraryItem = {
   id: string;
+  /** Canonical identifier for resolution (e.g. default:key:g, default:scale:major-ionian). */
+  stableId?: string;
   type: "scale" | "mode" | "shape" | "position" | "key";
   name: string;
   intervals?: number[] | null;
@@ -94,3 +97,6 @@ export type Worksheet = {
   sourceRef?: string;
   items: WorksheetItem[];
 };
+
+export { CANONICAL_LIBRARY_ITEMS } from "./canonicalLibrary";
+export type { CanonicalLibraryItem, LibraryType as CanonicalLibraryType } from "./canonicalLibrary";

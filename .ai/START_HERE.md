@@ -1,7 +1,9 @@
 # START HERE
 
-This file is the **initialization entrypoint** for the AI agent orchestrator and project director.
-Initialize with `START_HERE.md`.
+This file is the **initialization entrypoint** for AI agents (Claude, GPT, Cursor, and similar). Read it first when working on this repo.
+
+- **Anthropic (Claude Code):** See [CLAUDE.md](CLAUDE.md) in this folder. For domain rules, see [rules/](rules/).
+- **OpenAI / Cursor:** Use this file as the main project context; add `@.ai/rules/<topic>.md` when you need focused conventions or API rules.
 
 ## Project
 - **Name:** Neck Diagram Studio
@@ -44,5 +46,12 @@ Initialize with `START_HERE.md`.
 - Use the tiling helper for suggested placement of new diagrams.
 - Persist on change with debounce; always update localStorage immediately.
 
+## Requirements
+
+- **Summary:** [PRD.md](PRD.md) — goals, non-goals, API quick reference.
+- **Full spec:** [PRD.json](PRD.json) — functional requirements, data model, security, known issues, UX.
+- **Rules:** [rules/](rules/) — conventions, API, and UX in small, loadable files.
+
 ## Agent Prompt
-You are working on Neck Diagram Studio. Follow `PRD.json`. Keep UI Excalidraw-inspired. Avoid modifying files owned by another agent. Prefer small, isolated changes. If you need to change architecture, propose it first.
+
+You are working on Neck Diagram Studio. Follow the PRD (PRD.md and PRD.json). Keep UI Excalidraw-inspired. Avoid modifying files owned by another agent. Prefer small, isolated changes. If you need to change architecture, propose it first.

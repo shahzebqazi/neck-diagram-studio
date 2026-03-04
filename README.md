@@ -20,6 +20,7 @@ The API runs at `http://localhost:3001` and the web app at `http://localhost:517
 - `prisma`: Prisma schema and seed data.
 
 ## Notes
+- In production, the database must not be exposed to the public internet; restrict access to a private network or VPC.
 - The app persists the most recent project to Postgres and caches it in `localStorage`.
 - New projects start with a blank canvas.
 - Holding `Alt` while dragging resizes a neck; `Alt+Shift` scales proportionally.
