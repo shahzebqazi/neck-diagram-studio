@@ -2661,6 +2661,8 @@ const App = ({ mode = "studio" }: AppProps) => {
       </header>
 
       <div className="toolbar">
+        <div className="toolbar-spacer" aria-hidden="true" />
+        <div className="toolbar-center">
         <div className="toolbar-tabs">
           <button
             className={`sidebar-toggle${sidebarCollapsed ? " is-collapsed" : ""}`}
@@ -2694,6 +2696,7 @@ const App = ({ mode = "studio" }: AppProps) => {
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
+                      event.preventDefault();
                       requestDelete({ type: "tab", id: tab.id });
                     }}
                     aria-label={`Close ${displayName}`}
@@ -2907,6 +2910,8 @@ const App = ({ mode = "studio" }: AppProps) => {
             ) : null}
           </div>
         </div>
+        </div>
+        <div className="toolbar-spacer" aria-hidden="true" />
         <div className="toolbar-right">
           <div className="tool-hint">
             Hold Cmd/Ctrl and drag to move. Hold Alt to resize, Alt+Shift to scale. Press Cmd/Ctrl + / to toggle the
