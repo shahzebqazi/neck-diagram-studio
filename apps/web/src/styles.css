@@ -1095,18 +1095,27 @@ body {
   overflow-x: auto;
   padding: 4px 0;
   min-width: 0;
-  max-width: clamp(240px, 34vw, 360px);
-  scrollbar-width: none;
+  max-width: clamp(240px, 50vw, 600px);
+  scrollbar-width: thin;
+  scroll-behavior: smooth;
 }
 
 .tab-item {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  flex-shrink: 1;
+  max-width: 180px;
 }
 
 .tabs-list::-webkit-scrollbar {
-  display: none;
+  height: 3px;
+}
+
+.tabs-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
 }
 
 .tab-button {
@@ -1121,6 +1130,9 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tab-button:hover {
@@ -1545,7 +1557,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 16px 48px;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--border);
 }
@@ -1641,22 +1653,39 @@ body {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
 }
 
-/* --- Glass panel --- */
-.lp-glass {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 20px;
-  padding: 8px;
+/* --- Phone frame --- */
+.lp-phone {
+  position: relative;
+  max-width: 280px;
+  margin: 0 auto;
+  border-radius: 36px;
+  border: 4px solid rgba(255, 255, 255, 0.12);
+  background: #000;
   overflow: hidden;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 24px 64px rgba(0, 0, 0, 0.6),
+    0 0 80px rgba(200, 40, 40, 0.08);
 }
 
-.lp-glass img {
+.lp-phone::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 22px;
+  border-radius: 12px;
+  background: #111;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  z-index: 2;
+}
+
+.lp-phone img {
   width: 100%;
   height: auto;
   display: block;
-  border-radius: 14px;
 }
 
 /* --- Hero --- */
@@ -1670,9 +1699,9 @@ body {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 70% 50% at 15% 30%, rgba(255, 179, 71, 0.2), transparent),
-    radial-gradient(ellipse 60% 45% at 80% 20%, rgba(72, 167, 255, 0.15), transparent),
-    radial-gradient(ellipse 50% 40% at 40% 80%, rgba(255, 120, 120, 0.1), transparent);
+    radial-gradient(ellipse 60% 50% at 20% 30%, rgba(200, 40, 40, 0.15), transparent),
+    radial-gradient(ellipse 50% 40% at 75% 20%, rgba(160, 30, 30, 0.1), transparent),
+    radial-gradient(ellipse 40% 35% at 50% 85%, rgba(120, 20, 20, 0.08), transparent);
   pointer-events: none;
 }
 

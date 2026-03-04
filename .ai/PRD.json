@@ -14,7 +14,10 @@
     "Offer a demo page that showcases the product without requiring login.",
     "Provide a landing page with a brief project description and key links.",
     "Ship a reliable import/export flow backed by automated tests.",
-    "Polish the theme palettes and set high-contrast as the default theme."
+    "Polish the theme palettes and set high-contrast as the default theme.",
+    "Support import/export interoperability for Guitar Pro, MIDI, and Reaper-oriented workflows.",
+    "Allow users to toggle guitar sound playback so note interactions can be auditioned.",
+    "Harden worksheet data structures with clear validation and compatibility rules."
   ],
   "non_goals": [
     "Multi-user collaboration.",
@@ -25,14 +28,16 @@
     "Bug: PNG/PDF export does not prompt for a filename; users cannot name the file before download.",
     "Bug: PNG/PDF export renders black output in some cases; exports must preserve the diagram colors.",
     "Bug: Resizing the browser viewport does not keep diagrams centered; diagrams drift to the right after resize.",
-    "Bug: Creating a diagram from Theory with A harmonic minor selected generates A# harmonic minor instead.",
-    "Bug: Selecting 27 frets causes neck diagrams to stop evaluating/rendering correctly.",
     "Bug: Fret number labels overlap the diagram title; move the title above the diagram rather than below.",
-    "Bug: Selecting G major in Theory renders G# major instead.",
-    "Bug: Changing strings to 4 leaves notes on removed strings (stringIndex >= 4).",
-    "Bug: Reducing frets to 5 leaves notes on frets >= 5.",
-    "Bug: Changing key/scale/position in the Diagram panel does not regenerate notes; note positions stay identical.",
-    "Bug: Diagram panel Mode dropdown is not clickable; label mode menu fails to open."
+    "Bug: Selecting 27 frets causes dense fret spacing on narrow diagrams; consider minimum width enforcement or adaptive fret label thinning.",
+    "Verified: G major renders correctly (not G# as previously reported). Runtime tested 2026-03-04.",
+    "Verified: A harmonic minor needs runtime retest; math traces correctly in code.",
+    "Verified: Changing strings to 4 correctly removes out-of-range notes via clampNotesToConfig.",
+    "Verified: Reducing frets to 5 correctly removes out-of-range notes via clampNotesToConfig.",
+    "Verified: Changing key/scale/position in Diagram panel regenerates notes via buildDiagramNotes.",
+    "Verified: Mode dropdown is clickable and functional. Runtime tested 2026-03-04.",
+    "Fixed: Theory panel Worksheets sub-section header removed; worksheet controls are now inline within Theory panel.",
+    "Fixed: Tab bar now truncates long tab names (max-width 150px, ellipsis), shows full name on hover, wider scroll area, and visible thin scrollbar."
   ],
   "functional_requirements": {
     "canvas": [
@@ -59,7 +64,15 @@
       "Mouse interaction to place/remove notes.",
       "Label modes: key, interval, picking direction.",
       "Global key/scale selection to derive interval and note labels.",
-      "Imported notes must be normalized to ensure unique ids (generate missing ids on import)."
+      "Imported notes must be normalized to ensure unique ids (generate missing ids on import).",
+      "When sound preview is enabled, placing or triggering a note should play a guitar-like note sample for that pitch."
+    ],
+    "worksheets": [
+      "Worksheet JSON must continue to support id, title, sourceRef, and items[] where each item maps 1:1 to a renderable diagram.",
+      "Worksheet items must support keyId, scaleId, positionId, optional notes[], and optional config overrides for instrument-specific settings.",
+      "Worksheet parsing must validate required fields, reject malformed item shapes, and surface user-facing errors for invalid files.",
+      "Worksheet compatibility rules must be documented for 6/7/8/9-string diagrams, including tuning normalization and fret-range constraints.",
+      "Worksheet render behavior must remain resilient when theory ids are missing from the library (render with available data, do not crash)."
     ],
     "diagram_rendering": [
       "Fret number labels must never overlap; when spacing is tight, reduce label density or hide labels to preserve readability.",
@@ -114,7 +127,18 @@
     ],
     "export": [
       "PDF export must render at 300 DPI for print-ready output.",
-      "Page outline (letter paper) must be centered in the viewport, remain correct at all zoom levels, and scale appropriately across screen resolutions."
+      "Page outline (letter paper) must be centered in the viewport, remain correct at all zoom levels, and scale appropriately across screen resolutions.",
+      "Support importing and exporting Guitar Pro files (at minimum .gp/.gp5/.gpx where parser support allows).",
+      "Support importing and exporting MIDI files (.mid/.midi) with track and timing data mapped to worksheet/diagram note events.",
+      "Support Reaper workflow interoperability via MIDI plus Reaper project context export/import metadata (e.g. .rpp sidecar mapping or equivalent).",
+      "When format limitations prevent lossless round-tripping, show a clear compatibility warning before import/export completes."
+    ],
+    "audio_playback": [
+      "Add a global sound toggle in Settings for note audition playback (on/off).",
+      "When enabled, user note interactions (click, place, playback) trigger low-latency guitar note playback.",
+      "Playback pitch must respect tuning, string index, capo, and fret position.",
+      "Provide a basic instrument/voice option starting with clean guitar as the default.",
+      "Sound playback state should persist across sessions."
     ],
     "testing": [
       "Add an automated test suite that covers import/export flows for diagrams, pages, and JSON.",
@@ -169,11 +193,12 @@
       "Theme defaults to high-contrast for first-time users unless overridden by neck-diagram:theme.",
       "Sidebar defaults to collapsed unless neck-diagram:sidebar-collapsed is set.",
       "Delete warning defaults to true unless neck-diagram:delete-warning is false.",
-      "Panels default open: worksheets, theory, diagram, instrument, settings."
+      "Panels default open: worksheets, theory, diagram, instrument, settings.",
+      "Sound preview defaults to off unless neck-diagram:sound-enabled is set."
     ],
     "storage_keys": [
       "Project cache: neck-diagram:last-project.",
-      "UI prefs: neck-diagram:sidebar-collapsed, neck-diagram:delete-warning, neck-diagram:theme."
+      "UI prefs: neck-diagram:sidebar-collapsed, neck-diagram:delete-warning, neck-diagram:theme, neck-diagram:sound-enabled."
     ]
   },
   "state_testing": {
@@ -240,6 +265,33 @@
       "name": "string",
       "intervals": "int[] (optional)",
       "description": "string (optional)"
+    },
+    "worksheets": {
+      "worksheet": {
+        "id": "string",
+        "title": "string",
+        "sourceRef": "string (optional)",
+        "items": "WorksheetItem[]"
+      },
+      "worksheet_item": {
+        "name": "string",
+        "keyId": "string (optional)",
+        "scaleId": "string (optional)",
+        "positionId": "string (optional)",
+        "notes": "Note[] (optional)",
+        "config": "Partial<NeckConfig> (optional)"
+      },
+      "review_findings": [
+        "Current worksheet structure is flexible and maps cleanly to canvas diagrams.",
+        "Current structure lacks explicit format/version metadata for long-term compatibility.",
+        "Current structure relies on runtime guards; formal schema validation should be centralized.",
+        "Add optional schemaVersion and sourceFormat fields to improve import/export reliability across GP/MIDI/Reaper workflows."
+      ]
+    },
+    "audio_settings": {
+      "soundEnabled": "boolean",
+      "instrument": "string (default: clean-guitar)",
+      "volume": "number (0..1, optional)"
     }
   },
   "api_endpoints": [

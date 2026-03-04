@@ -510,7 +510,7 @@ const App = ({ mode = "studio" }: AppProps) => {
   const [genStrings, setGenStrings] = useState(6);
   const [genFrets, setGenFrets] = useState(12);
   const [genTarget, setGenTarget] = useState<"new-tab" | "current-tab">("new-tab");
-  const [theorySubOpen, setTheorySubOpen] = useState({ generate: false, worksheets: false });
+  const [theorySubOpen, setTheorySubOpen] = useState({ generate: false });
   const migratedProjectRef = useRef<string | null>(null);
   const projectRef = useRef<ProjectRecord | null>(null);
   const activeTabIdRef = useRef<string | null>(null);
@@ -2662,6 +2662,7 @@ const App = ({ mode = "studio" }: AppProps) => {
                     type="button"
                     role="tab"
                     aria-selected={tab.id === activeTabId}
+                    title={displayName}
                     onClick={() => handleTabSelect(tab.id)}
                   >
                     {displayName}
@@ -3317,20 +3318,8 @@ const App = ({ mode = "studio" }: AppProps) => {
                     : `Generate ${genCount} diagram${genCount === 1 ? "" : "s"}`}
                 </button>
               </div>
-              <div
-                className="panel-subhead"
-                role="button"
-                tabIndex={0}
-                style={{ cursor: "pointer", userSelect: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                onClick={() => setTheorySubOpen((p) => ({ ...p, worksheets: !p.worksheets }))}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTheorySubOpen((p) => ({ ...p, worksheets: !p.worksheets })); } }}
-              >
-                <span>Worksheets</span>
-                <span className="nf-icon" aria-hidden="true" style={{ fontSize: 10, transform: theorySubOpen.worksheets ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.15s" }}>
-                  {ICONS.chevron}
-                </span>
-              </div>
-              <div className="worksheet-controls" style={{ display: theorySubOpen.worksheets ? "block" : "none" }}>
+              <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "8px 0" }} />
+              <div className="worksheet-controls">
                 <p className="muted" style={{ marginBottom: 8, fontSize: "13px" }}>
                   Load a bundled worksheet or paste JSON.
                 </p>
