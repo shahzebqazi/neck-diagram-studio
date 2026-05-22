@@ -2,7 +2,8 @@
 
 Web editor for guitar and bass fretboard diagrams: scales, chords, and note layouts.
 
-**Repo:** [gitlab.com/destroyerofworlds/neck-diagram-studio](https://gitlab.com/destroyerofworlds/neck-diagram-studio)
+**Live:** [sqazi.sh/neck-diagram-studio](https://sqazi.sh/neck-diagram-studio/)  
+**Repo:** [gitlab.com/destroyerofworlds/neck-diagram-studio](https://gitlab.com/destroyerofworlds/neck-diagram-studio) · [github.com/shahzebqazi/neck-diagram-studio](https://github.com/shahzebqazi/neck-diagram-studio) (GitHub Pages deploy)
 
 ## Status
 
@@ -16,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000
+Open http://localhost:3000/neck-diagram-studio/
 
 ## What works in the frontend
 

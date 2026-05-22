@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
+  basePath: '/neck-diagram-studio',
+  assetPrefix: '/neck-diagram-studio/',
   trailingSlash: true,
   images: {
     unoptimized: true,
