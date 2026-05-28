@@ -1,13 +1,40 @@
+<div align="center">
+
+<p align="center">
+  <img src="docs/assets/hero.svg" alt="Neck Diagram Studio" width="100%" />
+</p>
+
 # Neck Diagram Studio
 
-Web editor for guitar and bass fretboard diagrams: scales, chords, and note layouts.
+### Fretboard editor for guitar and bass — scales, chords, tunings, export
 
-**Live:** [sqazi.sh/neck-diagram-studio](https://sqazi.sh/neck-diagram-studio/)  
-**Repo:** [gitlab.com/destroyerofworlds/neck-diagram-studio](https://gitlab.com/destroyerofworlds/neck-diagram-studio) · [github.com/shahzebqazi/neck-diagram-studio](https://github.com/shahzebqazi/neck-diagram-studio) (GitHub Pages deploy)
+[![Next.js](https://img.shields.io/badge/Next.js-14-000000.svg)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6.svg)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](#license)
 
-## Status
+**Web app** for laying out multiple neck diagrams on a canvas: intervals, note names, picking marks, presets, PNG/PDF export.
 
-Frontend only in this tree (Next.js). Login/register pages and the API client expect a backend that is not checked in. `docker-compose.yml` describes a planned stack (PostgreSQL, Haskell API, nginx) and will not run as-is.
+> **Status:** Frontend shipped in this repo. Login/register UI and API client expect a **backend not checked in** — `docker-compose.yml` describes a planned PostgreSQL + Haskell API stack.
+
+**Live:** [sqazi.sh/neck-diagram-studio](https://sqazi.sh/neck-diagram-studio/)
+
+[Run locally](#run-locally) · [Features](#what-works) · [Stack](#stack) · [Shortcuts](#canvas-shortcuts)
+
+</div>
+
+---
+
+## What works
+
+| Feature | Detail |
+|---------|--------|
+| Canvas | Pan/zoom; multiple necks per page |
+| Neck config | 4–8 strings, fret range, capo |
+| Notation | Intervals (R, ♭3, 5), note names, picking ↓ ↑ |
+| Presets | Scale and tuning presets (guitar + bass) |
+| Export | PNG or PDF from the UI |
+
+---
 
 ## Run locally
 
@@ -19,25 +46,29 @@ npm run dev
 
 Open http://localhost:3000/neck-diagram-studio/
 
-## What works in the frontend
-
-- Pan and zoom; place multiple neck diagrams on one page
-- 4–8 strings, fret range, capo position
-- Intervals (R, b3, 5), note names, picking marks (↓, ↑)
-- Scale and tuning presets (guitar and bass)
-- Export to PNG or PDF from the UI
+---
 
 ## Stack
 
-Next.js 14, React 18, TypeScript, Tailwind CSS, Zustand.
+| Layer | Technology |
+|-------|------------|
+| UI | Next.js 14, React 18, TypeScript, Tailwind CSS |
+| State | Zustand |
+| Planned API | Haskell service (not in tree) |
+
+---
 
 ## Layout
 
 ```
-frontend/     Next.js app
-tests/        SQL fixtures (for a future backend)
+frontend/     Next.js app (shipped)
+tests/        SQL fixtures for future backend
 skills/       Optional agent workflow notes
 ```
+
+**Repos:** [GitHub](https://github.com/shahzebqazi/neck-diagram-studio) · [GitLab](https://gitlab.com/destroyerofworlds/neck-diagram-studio)
+
+---
 
 ## Canvas shortcuts
 
@@ -50,8 +81,9 @@ skills/       Optional agent workflow notes
 | Move | Drag selection |
 | Duplicate | Alt + drag |
 | Resize | Alt + Shift + drag |
-| Add note | Click fret |
-| Remove note | Click note |
+| Add / remove note | Click fret / click note |
+
+---
 
 ## License
 
